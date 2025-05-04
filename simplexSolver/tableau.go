@@ -1,6 +1,8 @@
-package solver
+package simplexSolver
 
 import (
+	"fmt"
+
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	"gonum.org/v1/gonum/mat"
@@ -14,7 +16,7 @@ type Tableau struct {
 	Problem           *problem.OptimizationProblem
 }
 
-func InitialTableau(problemIn *problem.OptimizationProblem) Tableau {
+func GetInitialTableau(problemIn *problem.OptimizationProblem) Tableau {
 	// Setup
 	tableau := Tableau{
 		BasicVariables:    []symbolic.Variable{},
@@ -53,6 +55,9 @@ Description:
 */
 func (tableau *Tableau) ComputeFeasibleSolution() *mat.VecDense {
 	// Setup
+	fmt.Printf("Computing feasible solution...\n")
+	fmt.Printf("Problem: %v\n", tableau.Problem)
+	fmt.Printf("Tableau: %v\n", tableau)
 	A, b := tableau.Problem.LinearEqualityConstraintMatrices()
 
 	// Create the matrix of coefficients of the basic variables

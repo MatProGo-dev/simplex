@@ -5,7 +5,7 @@ import (
 
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 
-	"matprogo.dev/solvers/simplex/solver"
+	"matprogo.dev/solvers/simplex/simplexSolver"
 )
 
 /*
@@ -41,7 +41,7 @@ func TestTransformAllUnboundedVariables1(t *testing.T) {
 	)
 
 	// Create a new solver
-	solver := solver.New(p1.Name + " Solver")
+	solver := simplexSolver.New(p1.Name + " Solver")
 	solver.OriginalProblem = p1
 
 	// Transform all unbounded variables

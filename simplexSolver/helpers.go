@@ -1,4 +1,4 @@
-package solver
+package simplexSolver
 
 import (
 	"fmt"
@@ -135,6 +135,7 @@ func ToStandardFormWithSlackVariables(problemIn *problem.OptimizationProblem) (*
 						slackVariables,
 						problemInStandardForm.Variables[nVariables-1-jj],
 					)
+					// fmt.Printf("Slack variable %d: %v\n", jj, problemInStandardForm.Variables[nVariables-1-jj])
 				}
 				// Add the slack variable to the left hand side
 				newLHS = newLHS.Plus(
@@ -174,6 +175,8 @@ func ToStandardFormWithSlackVariables(problemIn *problem.OptimizationProblem) (*
 		newObjectiveExpression,
 		problemIn.Objective.Sense,
 	)
+
+	fmt.Printf("The slack variables are: %v\n", slackVariables)
 
 	// Return the new problem and the slack variables
 	return problemInStandardForm, slackVariables
