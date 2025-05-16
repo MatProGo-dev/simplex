@@ -55,9 +55,13 @@ func TestGetInitialTableau1(t *testing.T) {
 	problemIn := simplexSolver.GetTestProblem3()
 
 	// Create the tableau
-	tableau := simplexSolver.GetInitialTableau(problemIn)
-	if tableau.Problem != problemIn {
-		t.Errorf("Expected problem to be %v, but got %v", problemIn, tableau.Problem)
+	tableau, err := simplexSolver.GetInitialTableau(problemIn)
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
+
+	if tableau.Problem == problemIn {
+		t.Errorf("Expected problem to have changed from %v, but got %v", problemIn, tableau.Problem)
 	}
 
 	// Check that the number of basic variables is 3
@@ -73,7 +77,7 @@ func TestGetInitialTableau1(t *testing.T) {
 	}
 
 	// Check that the number of non-basic variables is 3
-	if len(tableau.NonBasicVariables) != 3 {
+	if len(tableau.NonBasicVariables) != len(tableau.Problem.Variables)-len(tableau.BasicVariables) {
 		t.Errorf("Expected 3 non-basic variables, but got %d", len(tableau.NonBasicVariables))
 	}
 
@@ -107,10 +111,16 @@ func TestComputeFeasibleSolution1(t *testing.T) {
 	problemIn := simplexSolver.GetTestProblem3()
 
 	// Create the tableau
-	tableau := simplexSolver.GetInitialTableau(problemIn)
+	tableau, err := simplexSolver.GetInitialTableau(problemIn)
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
 
 	// Compute the feasible solution
-	solution := tableau.ComputeFeasibleSolution()
+	solution, err := tableau.ComputeFeasibleSolution()
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
 
 	// Check that the solution is correct
 	expectedSolution := mat.NewVecDense(3, []float64{4, 12, 8})

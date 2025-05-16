@@ -53,12 +53,12 @@ func TestTransformAllUnboundedVariables1(t *testing.T) {
 	}
 
 	// Check that there are the same number of constraints in the new problem as in the original problem
-	if len(solver.ProblemWithAllPositiveVariables.Constraints) != len(p1.Constraints)+1 {
-		t.Errorf("Expected 3 constraints, but got %d", len(solver.ProblemWithAllPositiveVariables.Constraints))
+	if len(solver.ProblemWithAllPositiveVariables.Constraints) != len(p1.Constraints) {
+		t.Errorf("Expected 1 constraints, but got %d", len(solver.ProblemWithAllPositiveVariables.Constraints))
 	}
 
 	// Check that the first constraint contains the difference of the two new variables
-	if len(solver.ProblemWithAllPositiveVariables.Constraints[2].Left().Variables()) != 2 {
+	if len(solver.ProblemWithAllPositiveVariables.Constraints[0].Left().Variables()) != 2 {
 		t.Errorf("Expected 2 variables in the first constraint, but got %d", len(solver.ProblemWithAllPositiveVariables.Constraints[0].Left().Variables()))
 		t.Errorf("Constraint: %s", solver.ProblemWithAllPositiveVariables.Constraints[2])
 	}

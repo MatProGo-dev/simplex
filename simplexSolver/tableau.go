@@ -16,20 +16,22 @@ type Tableau struct {
 	Problem           *problem.OptimizationProblem
 }
 
-func GetInitialTableau(problemIn *problem.OptimizationProblem) Tableau {
+func GetInitialTableau(problemIn *problem.OptimizationProblem) (Tableau, error) {
 	// Setup
-	tableau := Tableau{
-		BasicVariables:    []symbolic.Variable{},
-		NonBasicVariables: []symbolic.Variable{},
-		Problem:           problemIn,
-	}
 
 	// Transform the problem into the standard form where all constraints
 	// are equality constraints
-	problemInStandardForm, slackVariables := ToStandardFormWithSlackVariables(problemIn)
+	problemInStandardForm, slackVariables, err := problemIn.ToLPStandardForm1()
+	if err != nil {
+		return Tableau{}, err
+	}
 
-	// The slack variables are the initial basic variables
-	tableau.BasicVariables = slackVariables
+	// Create the tableau
+	tableau := Tableau{
+		BasicVariables:    slackVariables, // The slack variables are the initial basic variables
+		NonBasicVariables: []symbolic.Variable{},
+		Problem:           problemInStandardForm,
+	}
 
 	// The non-basic variables are the original variables
 	tableau.NonBasicVariables = SetDifferenceOfVariables(
@@ -37,10 +39,13 @@ func GetInitialTableau(problemIn *problem.OptimizationProblem) Tableau {
 		slackVariables,
 	)
 
+	fmt.Printf("Basic Variables: %v\n", tableau.BasicVariables)
+	fmt.Printf("Non-Basic Variables: %v\n", tableau.NonBasicVariables)
+
 	// The non-basic values are assumed to be zero
 	tableau.NonBasicValues = mat.NewVecDense(len(tableau.NonBasicVariables), nil)
 
-	return tableau
+	return tableau, nil
 }
 
 /*
@@ -53,25 +58,34 @@ Description:
 	Where A is the matrix of coefficients of the basic variables
 	and b is the vector of constants.
 */
-func (tableau *Tableau) ComputeFeasibleSolution() *mat.VecDense {
+func (tableau *Tableau) ComputeFeasibleSolution() (*mat.VecDense, error) {
 	// Setup
 	fmt.Printf("Computing feasible solution...\n")
 	fmt.Printf("Problem: %v\n", tableau.Problem)
 	fmt.Printf("Tableau: %v\n", tableau)
-	A, b := tableau.Problem.LinearEqualityConstraintMatrices()
+	A, b, err := tableau.Problem.LinearEqualityConstraintMatrices()
+	if err != nil {
+		return nil, err
+	}
 
 	// Create the matrix of coefficients of the basic variables
-	N := SliceMatrixAccordingToVariableSet(
+	N, err := SliceMatrixAccordingToVariableSet(
 		tableau.Problem,
 		A,
 		tableau.NonBasicVariables,
 	)
+	if err != nil {
+		return nil, err
+	}
 
-	B := SliceMatrixAccordingToVariableSet(
+	B, err := SliceMatrixAccordingToVariableSet(
 		tableau.Problem,
 		A,
 		tableau.BasicVariables,
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	// Solve the system of equations
 	x := mat.NewVecDense(len(tableau.BasicVariables), nil)
@@ -80,6 +94,7 @@ func (tableau *Tableau) ComputeFeasibleSolution() *mat.VecDense {
 	// xComponentFromb  = B^-1 * b
 	var BInv *mat.Dense
 	BAsDense := B.ToDense()
+	fmt.Printf("BAsDense: %v\n", BAsDense)
 	BInv.Inverse(&BAsDense)
 	bAsVecDense := b.ToVecDense()
 	x.MulVec(BInv, &bAsVecDense)
@@ -93,7 +108,7 @@ func (tableau *Tableau) ComputeFeasibleSolution() *mat.VecDense {
 	xComponentFromXNonBasic.MulVec(BN, tableau.NonBasicValues)
 	x.AddVec(x, xComponentFromXNonBasic)
 
-	return x
+	return x, nil
 }
 
 /*

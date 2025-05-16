@@ -3,8 +3,8 @@ package getConstraintMatrices_test
 import (
 	"testing"
 
-	"matprogo.dev/solvers/simplex/solver"
-	"matprogo.dev/solvers/simplex/solver/getConstraintMatrices"
+	"matprogo.dev/solvers/simplex/simplexSolver"
+	"matprogo.dev/solvers/simplex/simplexSolver/getConstraintMatrices"
 )
 
 /*
@@ -16,7 +16,7 @@ Description:
 */
 func Test_NInequalityConstraints1(t *testing.T) {
 	// Get Example Problem 1
-	problem1 := solver.GetTestProblem1()
+	problem1 := simplexSolver.GetTestProblem1()
 
 	// There should only be 1 inequality constraint in this problem
 	if getConstraintMatrices.NInequalityConstraints(problem1) != 1 {
@@ -36,7 +36,7 @@ Description:
 */
 func Test_NInequalityConstraints2(t *testing.T) {
 	// Get Example Problem 1
-	problem1 := solver.GetTestProblem2()
+	problem1 := simplexSolver.GetTestProblem2()
 
 	// There should only be 1 inequality constraint in this problem
 	if getConstraintMatrices.NInequalityConstraints(problem1) != 5 {

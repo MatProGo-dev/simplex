@@ -2,7 +2,6 @@ package simplexSolver
 
 import (
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
-	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 )
 
 type SimplexSolver struct {
@@ -43,66 +42,13 @@ func (solver *SimplexSolver) FindAllBasicSolutionsForRank(m int) [][]int {
 	return [][]int{}
 }
 
-func (solver *SimplexSolver) TransformAllUnboundedVariables() {
-	// Setup
-	originalProblem := solver.OriginalProblem
-
-	// For each variable, let's create two new variables
-	// and set the original variable to be the difference of the two
-	mapFromOriginalVariablesToNewExpressions := make(map[symbolic.Variable]symbolic.Expression)
-	for ii := 0; ii < len(originalProblem.Variables); ii++ {
-		// Setup
-		xII := originalProblem.Variables[ii]
-
-		// Create the two new variables
-		solver.ProblemWithAllPositiveVariables.AddVariableClassic(0.0, symbolic.Infinity.Constant(), symbolic.Continuous)
-		nVariables := len(solver.ProblemWithAllPositiveVariables.Variables)
-		solver.ProblemWithAllPositiveVariables.Variables[nVariables-1].Name = xII.Name + " (+)"
-		variablePositivePart := solver.ProblemWithAllPositiveVariables.Variables[nVariables-1]
-
-		solver.ProblemWithAllPositiveVariables.AddVariableClassic(0.0, symbolic.Infinity.Constant(), symbolic.Continuous)
-		nVariables = len(solver.ProblemWithAllPositiveVariables.Variables)
-		solver.ProblemWithAllPositiveVariables.Variables[nVariables-1].Name = xII.Name + " (-)"
-		variableNegativePart := solver.ProblemWithAllPositiveVariables.Variables[nVariables-1]
-
-		// Set the original variable to be the difference of the two new variables
-		mapFromOriginalVariablesToNewExpressions[xII] =
-			variablePositivePart.Minus(variableNegativePart)
+func (solver *SimplexSolver) TransformAllUnboundedVariables() error {
+	var err error
+	solver.ProblemWithAllPositiveVariables, err = solver.OriginalProblem.ToProblemWithAllPositiveVariables()
+	if err != nil {
+		return err
 	}
 
-	// Now, let's create the new constraints by replacing the variables in the
-	// original constraints with the new expressions
-	for _, constraint := range originalProblem.Constraints {
-		// Create a new constraint
-		constraintCopy := constraint
-
-		// Create a new expression by substituting the variables according
-		// to the map we created above
-		oldLHS := constraint.Left()
-		newLHS := oldLHS.SubstituteAccordingTo(mapFromOriginalVariablesToNewExpressions)
-
-		oldRHS := constraint.Right()
-		newRHS := oldRHS.SubstituteAccordingTo(mapFromOriginalVariablesToNewExpressions)
-
-		newConstraint := newLHS.Comparison(
-			newRHS,
-			constraintCopy.ConstrSense(),
-		)
-
-		// Add the new constraint to the problem
-		solver.ProblemWithAllPositiveVariables.Constraints = append(
-			solver.ProblemWithAllPositiveVariables.Constraints,
-			newConstraint,
-		)
-	}
-
-	// Now, let's create the new objective function by substituting the variables
-	// according to the map we created above
-	newObjectiveExpression := solver.OriginalProblem.Objective.Expression.SubstituteAccordingTo(
-		mapFromOriginalVariablesToNewExpressions,
-	)
-	solver.ProblemWithAllPositiveVariables.SetObjective(
-		newObjectiveExpression,
-		solver.OriginalProblem.Objective.Sense,
-	)
+	// Return nil
+	return nil
 }

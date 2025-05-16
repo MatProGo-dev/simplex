@@ -5,7 +5,6 @@ import (
 
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
-	"gonum.org/v1/gonum/mat"
 )
 
 /*
@@ -213,7 +212,7 @@ func SetDifferenceOfVariables(a, b []symbolic.Variable) []symbolic.Variable {
 SliceMatrixAccordingToVariableSet
 Description:
 
-	Collects the columns of the input matrix that correspond
+	Collects the columns of the input matrix A that correspond
 	to the input variable set in an optimization problem.
 	Returns the new matrix.
 */
@@ -221,12 +220,21 @@ func SliceMatrixAccordingToVariableSet(
 	problemIn *problem.OptimizationProblem,
 	matrixIn symbolic.KMatrix,
 	variablesIn []symbolic.Variable,
-) symbolic.KMatrix {
+) (symbolic.KMatrix, error) {
 	// Setup
 	nVariables := len(problemIn.Variables)
 	dims := matrixIn.Dims()
-	out := symbolic.ZerosMatrix(dims[0], nVariables)
+	out := symbolic.ZerosMatrix(dims[0], len(variablesIn))
 	matrixInAsDense := matrixIn.ToDense()
+
+	// Check that the number of variables in the problem matches the number of columns in the matrix
+	if nVariables != dims[1] {
+		return nil, fmt.Errorf(
+			"Number of variables in the problem (%d) does not match number of columns in the matrix (%d)",
+			nVariables,
+			dims[1],
+		)
+	}
 
 	// Iterate through each variable in the problem
 	for ii := 0; ii < len(variablesIn); ii++ {
@@ -245,19 +253,12 @@ func SliceMatrixAccordingToVariableSet(
 			)
 		}
 
-		// Extract the column of the matrix that corresponds to this variable
-		extractedColumn, ok := matrixInAsDense.ColView(ii).(*mat.VecDense)
-		if !ok {
-			panic(
-				fmt.Sprintf(
-					"Error extracting column %d from matrix %v",
-					ii,
-					matrixIn,
-				),
-			)
+		// Set the column of the output matrix that corresponds to the extracted column
+		for jj := 0; jj < dims[0]; jj++ {
+			fmt.Printf("Setting out(%d, %d) = matrixIn(%d, %d)\n", jj, ii, jj, idxII)
+			out.Set(jj, ii, matrixInAsDense.At(jj, idxII))
 		}
-		out.SetCol(idxII, extractedColumn.RawVector().Data)
 	}
 
-	return symbolic.DenseToKMatrix(out)
+	return symbolic.DenseToKMatrix(out), nil
 }
