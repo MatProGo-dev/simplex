@@ -255,7 +255,7 @@ func SliceMatrixAccordingToVariableSet(
 
 		// Set the column of the output matrix that corresponds to the extracted column
 		for jj := 0; jj < dims[0]; jj++ {
-			fmt.Printf("Setting out(%d, %d) = matrixIn(%d, %d)\n", jj, ii, jj, idxII)
+			// fmt.Printf("Setting out(%d, %d) = matrixIn(%d, %d)\n", jj, ii, jj, idxII)
 			out.Set(jj, ii, matrixInAsDense.At(jj, idxII))
 		}
 	}

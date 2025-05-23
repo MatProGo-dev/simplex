@@ -63,6 +63,9 @@ func (tableau *Tableau) ComputeFeasibleSolution() (*mat.VecDense, error) {
 	fmt.Printf("Computing feasible solution...\n")
 	fmt.Printf("Problem: %v\n", tableau.Problem)
 	fmt.Printf("Tableau: %v\n", tableau)
+	nBasic := tableau.NumberOfBasicVariables()
+
+	// Collect the matrices of coefficients
 	A, b, err := tableau.Problem.LinearEqualityConstraintMatrices()
 	if err != nil {
 		return nil, err
@@ -92,12 +95,20 @@ func (tableau *Tableau) ComputeFeasibleSolution() (*mat.VecDense, error) {
 
 	// Compute the part that comes from the rhs (b)
 	// xComponentFromb  = B^-1 * b
-	var BInv *mat.Dense
+	var BInv *mat.Dense = mat.NewDense(nBasic, nBasic, nil)
 	BAsDense := B.ToDense()
+	fmt.Printf("A: %v\n", A)
 	fmt.Printf("BAsDense: %v\n", BAsDense)
-	BInv.Inverse(&BAsDense)
+	err = BInv.Inverse(&BAsDense)
+	if err != nil {
+		return nil, fmt.Errorf("there was an issue inverting the matrix: %v", err)
+	}
+	fmt.Printf("BInv: %v\n", BInv)
 	bAsVecDense := b.ToVecDense()
+	fmt.Printf("bAsVecDense: %v\n", bAsVecDense)
 	x.MulVec(BInv, &bAsVecDense)
+
+	fmt.Printf("x: %v\n", x)
 
 	// Compute the part that comes from the non-basic variables
 	// xComponentFromXNonBasic = B^(-1) * N * x

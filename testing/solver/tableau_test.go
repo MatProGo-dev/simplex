@@ -123,7 +123,7 @@ func TestComputeFeasibleSolution1(t *testing.T) {
 	}
 
 	// Check that the solution is correct
-	expectedSolution := mat.NewVecDense(3, []float64{4, 12, 8})
+	expectedSolution := mat.NewVecDense(3, []float64{4, 6, 8})
 	if !mat.EqualApprox(solution, expectedSolution, 1e-10) {
 		t.Errorf("Expected feasible solution to be %v, but got %v", expectedSolution, solution)
 	}

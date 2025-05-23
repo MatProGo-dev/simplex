@@ -2,25 +2,33 @@ package simplexSolver
 
 import (
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
+	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
+	"gonum.org/v1/gonum/mat"
 )
 
+type SimplexSolverInternalState struct {
+	BasicVariables        []symbolic.Variable
+	NonBasicVariables     []symbolic.Variable
+	CurrentNonBasicValues *mat.VecDense
+	IterationCount        int
+}
+
 type SimplexSolver struct {
-	OriginalProblem                 *problem.OptimizationProblem
-	ProblemWithAllPositiveVariables *problem.OptimizationProblem
-	ProblemInStandardForm           *problem.OptimizationProblem
+	OriginalProblem       *problem.OptimizationProblem
+	ProblemInStandardForm *problem.OptimizationProblem
+	State                 SimplexSolverInternalState
 }
 
 func New(name string) SimplexSolver {
 	// Create name for the base problem
 	baseProblemName := name + " Problem"
 	return SimplexSolver{
-		OriginalProblem:                 problem.NewProblem(baseProblemName + " (Original Problem)"),
-		ProblemWithAllPositiveVariables: problem.NewProblem(baseProblemName + " (With All Positive Variables)"),
-		ProblemInStandardForm:           problem.NewProblem(baseProblemName + " (In Standard Form)"),
+		OriginalProblem:       problem.NewProblem(baseProblemName + " (Original Problem)"),
+		ProblemInStandardForm: problem.NewProblem(baseProblemName + " (In Standard Form)"),
 	}
 }
 
-func For(problem *problem.OptimizationProblem) SimplexSolver {
+func For(problem *problem.OptimizationProblem) (SimplexSolver, error) {
 	// Create a new solver
 	solver := New(problem.Name + " Solver")
 
@@ -29,26 +37,30 @@ func For(problem *problem.OptimizationProblem) SimplexSolver {
 	original.Name = problem.Name + " (Original Problem)"
 	solver.OriginalProblem = original
 
-	// Transform the problem to have all positive variables
-	solver.TransformAllUnboundedVariables()
+	// Transform the problem into the standard form where all constraints
+	// are equality constraints
+	solver.ProblemInStandardForm, slackVariables, err := solver.OriginalProblem.ToLPStandardForm1()
+	if err != nil {
+		return solver, err
+	}
+
+	// Initialize the internal state
+	solver.State = SimplexSolverInternalState{
+		BasicVariables: slackVariables,
+		NonBasicVariables: SetDifferenceOfVariables(
+			solver.ProblemInStandardForm.Variables,
+			slackVariables,
+		),
+		CurrentNonBasicValues: mat.NewVecDense(len(solver.ProblemInStandardForm.Variables), nil),
+		IterationCount:        0,
+	}
 
 	// TODO: Transform the problem to standard form
 
-	return solver
+	return solver, nil
 }
 
-func (solver *SimplexSolver) FindAllBasicSolutionsForRank(m int) [][]int {
+func (solver *SimplexSolver) GetStateAsTableau() [][]int {
 	//
 	return [][]int{}
-}
-
-func (solver *SimplexSolver) TransformAllUnboundedVariables() error {
-	var err error
-	solver.ProblemWithAllPositiveVariables, err = solver.OriginalProblem.ToProblemWithAllPositiveVariables()
-	if err != nil {
-		return err
-	}
-
-	// Return nil
-	return nil
 }
