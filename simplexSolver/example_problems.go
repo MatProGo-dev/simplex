@@ -138,3 +138,51 @@ func GetTestProblem3() *problem.OptimizationProblem {
 	// }
 	return out
 }
+
+/*
+GetTestProblem4
+Description:
+
+	Returns the LP from this youtube video:
+		https://youtu.be/XMLysZSPsug?si=KMoouByHAV3TTK7h&t=377
+	It should look like this:
+		Maximize	5 x1 + 5 x2 + 5 x3
+		Subject to
+			x1 + 3 x2 + x3 <= 3
+			-x1 + 3 x3 <= 2
+			2 x1 - x2 + 2 x3 <= 4
+			2 x1 + 3 x2 - x3 <= 2
+			x1 >= 0
+			x2 >= 0
+			x3 >= 0
+*/
+func GetTestProblem4() *problem.OptimizationProblem {
+	// Setup
+	out := problem.NewProblem("TestProblem4")
+
+	// Create variables
+	x := out.AddVariableVectorClassic(
+		3,
+		0.0,
+		symbolic.Infinity.Constant(),
+		symbolic.Continuous,
+	)
+
+	// Create Basic Objective
+	c := getKVector.From([]float64{5.0, 5.0, 5.0})
+	out.SetObjective(
+		c.Transpose().Multiply(x),
+		problem.SenseMaximize,
+	)
+	// Create Constraints (using one big matrix)
+	A := getKMatrix.From([][]float64{
+		{1.0, 3.0, 1.0},
+		{-1.0, 0.0, 3.0},
+		{2.0, -1.0, 2.0},
+		{2.0, 3.0, -1.0},
+	})
+	b := getKVector.From([]float64{3.0, 2.0, 4.0, 2.0})
+	out.Constraints = append(out.Constraints, A.Multiply(x).LessEq(b))
+
+	return out
+}

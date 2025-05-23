@@ -217,14 +217,14 @@ Description:
 	Returns the new matrix.
 */
 func SliceMatrixAccordingToVariableSet(
-	problemIn *problem.OptimizationProblem,
 	matrixIn symbolic.KMatrix,
-	variablesIn []symbolic.Variable,
+	originalSetOfVariables []symbolic.Variable,
+	subsetOfVariables []symbolic.Variable,
 ) (symbolic.KMatrix, error) {
 	// Setup
-	nVariables := len(problemIn.Variables)
+	nVariables := len(originalSetOfVariables)
 	dims := matrixIn.Dims()
-	out := symbolic.ZerosMatrix(dims[0], len(variablesIn))
+	out := symbolic.ZerosMatrix(dims[0], len(subsetOfVariables))
 	matrixInAsDense := matrixIn.ToDense()
 
 	// Check that the number of variables in the problem matches the number of columns in the matrix
@@ -237,16 +237,16 @@ func SliceMatrixAccordingToVariableSet(
 	}
 
 	// Iterate through each variable in the problem
-	for ii := 0; ii < len(variablesIn); ii++ {
+	for ii := 0; ii < len(subsetOfVariables); ii++ {
 		// Determine if this variable is in the set of variables
-		variable := variablesIn[ii]
-		idxII, err := symbolic.FindInSlice(variable, problemIn.Variables)
+		variable := subsetOfVariables[ii]
+		idxII, err := symbolic.FindInSlice(variable, originalSetOfVariables)
 		if err != nil {
 			// There was an issue searching through this list!
 			panic(
 				fmt.Sprintf(
 					"Error searching through variable list %v for %v: %v",
-					variablesIn,
+					subsetOfVariables,
 					variable,
 					err.Error(),
 				),
@@ -261,4 +261,57 @@ func SliceMatrixAccordingToVariableSet(
 	}
 
 	return symbolic.DenseToKMatrix(out), nil
+}
+
+/*
+SliceVectorAccordingToVariableSet
+Description:
+
+	Collects the elements of the input vector vectorIn and
+	assumes that each one corresponds to a variable in the input
+	`originalSetOfVariables`. We then return a new vector which
+	is just the elements of the first vector that correspond to the
+	variables in the input `subsetOfVariables`.
+	Returns the new vector.
+*/
+func SliceVectorAccordingToVariableSet(
+	vectorIn symbolic.KVector,
+	originalSetOfVariables []symbolic.Variable,
+	subsetOfVariables []symbolic.Variable,
+) (symbolic.KVector, error) {
+	// Setup
+	dims := vectorIn.Dims()
+	out := symbolic.ZerosVector(len(subsetOfVariables))
+	vectorInAsDense := vectorIn.ToVecDense()
+
+	// Check that the number of variables in the problem matches the number of columns in the matrix
+	if len(originalSetOfVariables) != dims[0] {
+		return nil, fmt.Errorf(
+			"Number of variables in the problem (%d) does not match number of columns in the matrix (%d)",
+			len(originalSetOfVariables),
+			dims[0],
+		)
+	}
+
+	// Iterate through each variable in the problem
+	for ii := 0; ii < len(subsetOfVariables); ii++ {
+		// Determine if this variable is in the set of variables
+		variable := subsetOfVariables[ii]
+		idxII, err := symbolic.FindInSlice(variable, originalSetOfVariables)
+		if err != nil {
+			// There was an issue searching through this list!
+			panic(
+				fmt.Sprintf(
+					"Error searching through variable list %v for %v: %v",
+					subsetOfVariables,
+					variable,
+					err.Error(),
+				),
+			)
+		}
+
+		out.SetVec(ii, vectorInAsDense.At(idxII, 0))
+	}
+
+	return symbolic.VecDenseToKVector(out), nil
 }

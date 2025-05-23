@@ -3,70 +3,100 @@ package solver_test
 import (
 	"testing"
 
-	"github.com/MatProGo-dev/MatProInterface.go/problem"
+	"gonum.org/v1/gonum/mat"
 
 	"matprogo.dev/solvers/simplex/simplexSolver"
 )
 
 /*
-TestTransformAllUnboundedVariables1
+Test_SimplexSolver_ComputeFeasibleSolution1
 Description:
 
-	Tests the TransformAllUnboundedVariables function of the SimplexSolver.
-	Here, we create a simple problem with one variable and one constraint.
-	The variable is unbounded, and the constraint is a simple equality.
-	After transforming the problem, we check that the new problem has two variables
-	(one for the positive part and one for the negative part) and that the
-	constraint is transformed correctly.
+	In this test, we verify that the ComputeFeasibleSolution() function correctly computes a feasible
+	solution for the basic variables.
+
+	We use an example problem from this youtube video:
+		https://www.youtube.com/watch?v=QAR8zthQypc&t=483s
+	which is written in standard form as:
+		maximize 4 x1 + 3 x2 + 5 x3
+		subject to
+			x1 + 2 x2 + 2 x3 + slack1 = 4
+			3 x1 + 4 x3 + slack2 = 12
+			2 x1 + x2 + 4 x3 + slack3 = 8
+
+		x1, x2, x3 >= 0
+		slack1, slack2, slack3 >= 0
+
+	We expect the feasible solution to be:
+		[4, 12, 8]
+	for the initial tableau.
 */
-func TestTransformAllUnboundedVariables1(t *testing.T) {
+func Test_SimplexSolver_ComputeFeasibleSolution1(t *testing.T) {
 	// Setup
+	problemIn := simplexSolver.GetTestProblem3()
 
-	// Create a new problem
-	p1 := problem.NewProblem("TestTransformAllUnboundedVariables1 Problem")
-	p1.AddVariable()
-	p1.Variables[0].Name = "x1"
-	v1 := p1.Variables[0]
-
-	// Set the objective function
-	p1.Constraints = append(
-		p1.Constraints,
-		v1.GreaterEq(-10.0),
-	)
-
-	// Set the objective function
-	p1.SetObjective(
-		v1,
-		problem.SenseMinimize,
-	)
-
-	// Create a new solver
-	solver := simplexSolver.New(p1.Name + " Solver")
-	solver.OriginalProblem = p1
-
-	// Transform all unbounded variables
-	solver.TransformAllUnboundedVariables()
-
-	// Check that the new problem has two variables
-	if len(solver.ProblemWithAllPositiveVariables.Variables) != 2 {
-		t.Errorf("Expected 2 variables, but got %d", len(solver.ProblemWithAllPositiveVariables.Variables))
+	// Create the solver
+	solver, err := simplexSolver.For(problemIn)
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
 	}
 
-	// Check that there are the same number of constraints in the new problem as in the original problem
-	if len(solver.ProblemWithAllPositiveVariables.Constraints) != len(p1.Constraints) {
-		t.Errorf("Expected 1 constraints, but got %d", len(solver.ProblemWithAllPositiveVariables.Constraints))
+	// Compute the feasible solution
+	solution, err := solver.ComputeFeasibleBasicSolution()
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
 	}
 
-	// Check that the first constraint contains the difference of the two new variables
-	if len(solver.ProblemWithAllPositiveVariables.Constraints[0].Left().Variables()) != 2 {
-		t.Errorf("Expected 2 variables in the first constraint, but got %d", len(solver.ProblemWithAllPositiveVariables.Constraints[0].Left().Variables()))
-		t.Errorf("Constraint: %s", solver.ProblemWithAllPositiveVariables.Constraints[2])
+	// Check that the solution is correct
+	expectedSolution := mat.NewVecDense(3, []float64{4, 6, 8})
+	if !mat.EqualApprox(solution, expectedSolution, 1e-10) {
+		t.Errorf("Expected feasible solution to be %v, but got %v", expectedSolution, solution)
+	}
+}
+
+/*
+Test_SimplexSolver_SolveLoop1
+Description:
+
+	In this test, we verify that the operations
+	of the solver loop are correct.
+	We will use a problem from this youtube video:
+		https://youtu.be/XMLysZSPsug?si=KMoouByHAV3TTK7h&t=377
+	Our method should find that the first Basic Feasible Solution
+	is {3 2 4 2} and the objective value should be zero.
+*/
+func Test_SimplexSolver_SolveLoop1(t *testing.T) {
+	// Setup
+	problemIn := simplexSolver.GetTestProblem4()
+
+	// Create the solver
+	solver, err := simplexSolver.For(problemIn)
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
 	}
 
-	// Check that the new objective function contains 2 variables instead of 1
-	if len(solver.ProblemWithAllPositiveVariables.Objective.Expression.Variables()) != 2 {
-		t.Errorf("Expected 2 variables in the objective function, but got %d", len(solver.ProblemWithAllPositiveVariables.Objective.Expression.Variables()))
-		t.Errorf("Objective: %s", solver.ProblemWithAllPositiveVariables.Objective.Expression)
+	// Find the first basic feasible solution
+	basic1, err := solver.ComputeFeasibleBasicSolution()
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
+
+	// Check that the solution is correct
+	expectedFirstBasicSolution := mat.NewVecDense(4, []float64{3, 2, 4, 2})
+	if !mat.EqualApprox(basic1, expectedFirstBasicSolution, 1e-10) {
+		t.Errorf("Expected feasible solution to be %v, but got %v", expectedFirstBasicSolution, basic1)
+	}
+
+	// Compute the value of the objective function that corresponds to the basic solution
+	obj1, err := solver.ComputeObjectiveFunctionValueWithFeasibleBasicSolution(basic1)
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
+
+	// Check that the objective value is correct (should be zero)
+	expectedObj1 := 0.0
+	if obj1 != expectedObj1 {
+		t.Errorf("Expected objective value to be %v, but got %v", expectedObj1, obj1)
 	}
 
 }
