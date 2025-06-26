@@ -6,13 +6,15 @@ import (
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	"gonum.org/v1/gonum/mat"
+	"matprogo.dev/solvers/simplex/algorithms"
+	"matprogo.dev/solvers/simplex/utils"
 )
 
 type SimplexSolver struct {
 	OriginalProblem       *problem.OptimizationProblem
 	ProblemInStandardForm *problem.OptimizationProblem
-	State                 SimplexSolverInternalState
-	IterationLimit        int
+	InternalState         algorithms.AlgorithmInternalState
+	config                Configuration
 }
 
 func New(name string) SimplexSolver {
@@ -24,7 +26,7 @@ func New(name string) SimplexSolver {
 	}
 }
 
-func For(problem *problem.OptimizationProblem) (SimplexSolver, error) {
+func For(problem *problem.OptimizationProblem, configIn Configuration) (SimplexSolver, error) {
 	// Create a new solver
 	solver := New(problem.Name + " Solver")
 
@@ -42,225 +44,75 @@ func For(problem *problem.OptimizationProblem) (SimplexSolver, error) {
 		return solver, err
 	}
 
-	// Initialize the internal state
-	solver.State = SimplexSolverInternalState{
-		BasicVariables: slackVariables,
-		NonBasicVariables: SetDifferenceOfVariables(
-			solver.ProblemInStandardForm.Variables,
-			slackVariables,
-		),
-		IterationCount: 0,
+	// Initialize Internal Solver State
+	solver.InternalState, err = solver.InitializeInternalState(slackVariables)
+	if err != nil {
+		return solver, err
 	}
-	solver.State.NonBasicValues = mat.NewVecDense(solver.NumberOfNonBasicVariables(), nil)
 
 	// Configure the solver
-	solver.IterationLimit = 1000
+	solver.config = configIn
 
 	return solver, nil
 }
 
-/*
-NumberOfBasicVariables
-Description:
+// func (solver *SimplexSolver) CurrentStateToTableau() (symbolic.KMatrix, error) {
 
-	Returns the number of basic variables in the tableau.
-*/
-func (solver *SimplexSolver) NumberOfBasicVariables() int {
-	return len(solver.State.BasicVariables)
-}
+// }
 
-/*
-NumberOfNonBasicVariables
-Description:
-
-	Returns the number of non-basic variables in the tableau.
-*/
-func (solver *SimplexSolver) NumberOfNonBasicVariables() int {
-	return len(solver.State.NonBasicVariables)
-}
-
-/*
-ComputeFeasibleBasicSolution
-Description:
-
-	Computes a feasible solution of the BASIC variables
-	of the optimization problem:
-	maximize 		c^T * x
-	subject to 		A * x = b
-					x >= 0
-	The introduction of basic and non-basic variables allows us to
-	rewrite the problem as:
-		maximize 		c_B^T * x_B + c_N^T * x_N
-		subject to 		A_B * x_B + A_N * x_N = b
-					x_B >= 0
-					x_N >= 0
-	Where
-		A_B is the matrix of coefficients of the basic variables,
-		A_N is the matrix of coefficients of the non-basic variables,
-		c_B is the vector of coefficients of the basic variables,
-		c_N is the vector of coefficients of the non-basic variables,
-		x_B is the vector of basic variables,
-		x_N is the vector of non-basic variables,
-		b is the vector of constants.
-
-	We assume that the value of the non-basic variables is given
-	(i.e., they are already saved in the state).
-*/
-func (solver *SimplexSolver) ComputeFeasibleBasicSolution() (*mat.VecDense, error) {
+func (solver *SimplexSolver) InitializeInternalState(initialSlackVariables []symbolic.Variable) (algorithms.AlgorithmInternalState, error) {
 	// Setup
-	fmt.Printf("Computing feasible solution...\n")
-	fmt.Printf("Problem: %v\n", solver.ProblemInStandardForm)
-	fmt.Printf("Tableau: %v\n", solver)
-	nBasic := solver.NumberOfBasicVariables()
 
-	// Collect the matrices of coefficients
-	A, b, err := solver.ProblemInStandardForm.LinearEqualityConstraintMatrices()
-	if err != nil {
-		return nil, err
+	// Initialize the internal state
+	out := algorithms.AlgorithmInternalState{
+		BasicVariables: initialSlackVariables,
+		NonBasicVariables: utils.SetDifferenceOfVariables(
+			solver.ProblemInStandardForm.Variables,
+			initialSlackVariables,
+		),
+		IterationCount: 0,
 	}
 
-	// Create the matrix of coefficients of the basic variables
-	N, err := SliceMatrixAccordingToVariableSet(
-		A,
-		solver.ProblemInStandardForm.Variables,
-		solver.State.NonBasicVariables,
+	nNonBasicVariables := out.NumberOfNonBasicVariables()
+	out.NonBasicValues = mat.NewVecDense(
+		nNonBasicVariables,
+		nil,
 	)
-	if err != nil {
-		return nil, err
-	}
 
-	B, err := SliceMatrixAccordingToVariableSet(
-		A,
-		solver.ProblemInStandardForm.Variables,
-		solver.State.BasicVariables,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// Solve the system of equations
-	x := mat.NewVecDense(solver.NumberOfBasicVariables(), nil)
-
-	// Compute the part that comes from the rhs (b)
-	// xComponentFromb  = B^-1 * b
-	var BInv *mat.Dense = mat.NewDense(nBasic, nBasic, nil)
-	BAsDense := B.ToDense()
-	fmt.Printf("A: %v\n", A)
-	fmt.Printf("BAsDense: %v\n", BAsDense)
-	err = BInv.Inverse(&BAsDense)
-	if err != nil {
-		return nil, fmt.Errorf("there was an issue inverting the matrix: %v", err)
-	}
-	fmt.Printf("BInv: %v\n", BInv)
-	bAsVecDense := b.ToVecDense()
-	fmt.Printf("bAsVecDense: %v\n", bAsVecDense)
-	x.MulVec(BInv, &bAsVecDense)
-
-	fmt.Printf("x: %v\n", x)
-
-	// Compute the part that comes from the non-basic variables
-	// xComponentFromXNonBasic = B^(-1) * N * x
-	xComponentFromXNonBasic := mat.NewVecDense(solver.NumberOfBasicVariables(), nil)
-	BN := mat.NewDense(solver.NumberOfBasicVariables(), solver.NumberOfNonBasicVariables(), nil)
-	NAsDense := N.ToDense()
-	BN.Mul(BInv, &NAsDense)
-	xComponentFromXNonBasic.MulVec(BN, solver.State.NonBasicValues)
-	x.AddVec(x, xComponentFromXNonBasic)
-
-	return x, nil
+	return out, nil
 }
 
-/*
-ComputeObjectiveFunctionValueWithFeasibleBasicSolution
-Description:
-
-	Computes the value of the objective function
-	of the optimization problem:
-	maximize 		c^T * x
-	subject to 		A * x = b
-					x >= 0
-	when the feasible solution of the BASIC variables is given as
-	input and the value of the non-basic variables is given
-	in the state of the solver.
-*/
-func (solver *SimplexSolver) ComputeObjectiveFunctionValueWithFeasibleBasicSolution(xBasic *mat.VecDense) (float64, error) {
+func (solver *SimplexSolver) CreateAlgorithm(algoType algorithms.AlgorithmType) (algorithms.AlgorithmInterface, error) {
 	// Setup
-	fmt.Printf("Computing objective function value...\n")
-	allVars := solver.ProblemInStandardForm.Variables
 
-	// Collect the linear coefficient of the objective function
-	objectiveExpression := solver.ProblemInStandardForm.Objective.Expression
-	objectiveAsSE, tf := objectiveExpression.(symbolic.ScalarExpression)
-	if !tf {
-		return 0.0, fmt.Errorf("the objective function is not a scalar expression")
+	// Selection Logic
+	switch algoType {
+	case algorithms.TypeNaive:
+		return &algorithms.NaiveAlgorithm{
+			ProblemInStandardForm: solver.ProblemInStandardForm,
+			IterationLimit:        solver.config.IterationLimit,
+		}, nil
+	default:
+		return &algorithms.NaiveAlgorithm{}, fmt.Errorf(
+			"The Solve() function was given an unknown solver type: %v",
+			algoType,
+		)
 	}
-
-	// TODO(kwesi): Check that the objective function is a constant or not
-
-	// Compute the linear coefficient of the objective function
-	c := objectiveAsSE.LinearCoeff(allVars)
-
-	// Split the coefficient into the basic and non-basic variables
-	cB, err := SliceVectorAccordingToVariableSet(
-		symbolic.VecDenseToKVector(c),
-		allVars,
-		solver.State.BasicVariables,
-	)
-	if err != nil {
-		return 0.0, err
-	}
-
-	cN, err := SliceVectorAccordingToVariableSet(
-		symbolic.VecDenseToKVector(c),
-		allVars,
-		solver.State.NonBasicVariables,
-	)
-	if err != nil {
-		return 0.0, err
-	}
-
-	// Compute the value of the objective function
-	// f(x) = c_B^T * x_B + c_N^T * x_N
-	z := cB.Transpose().Multiply(xBasic).Plus(
-		cN.Transpose().Multiply(solver.State.NonBasicValues),
-	)
-
-	zAsK, tf := z.(symbolic.K)
-	if !tf {
-		return 0.0, fmt.Errorf("the objective function is not a scalar expression")
-	}
-
-	return float64(zAsK), nil
 }
 
-func (solver *SimplexSolver) CurrentStateToTableau() (symbolic.KMatrix, error) {
-
-}
-
-func (solver *SimplexSolver) Solve() (problem.Solution, error) {
+func (solver *SimplexSolver) Solve(algoType algorithms.AlgorithmType) (problem.Solution, error) {
 	// Setup
-	solver.State.IterationCount = 0
 
-	// Compute the feasible solution for the current choice of
-	// basic variables
-	for iter := 0; iter < solver.IterationLimit; iter++ {
-		// Compute the feasible Solution of the Basic variables
-		xBasicII, err := solver.ComputeFeasibleBasicSolution()
-		if err != nil {
-			return problem.Solution{}, err
-		}
-
-		// Compute the value of the objective function
-		objII, err := solver.ComputeObjectiveFunctionValueWithFeasibleBasicSolution(xBasicII)
-		if err != nil {
-			return problem.Solution{}, err
-		}
-		fmt.Printf("Iteration %d: Basic Solution: %v, Objective Value: %f\n", iter, xBasicII, objII)
-
-		// Check if the solution is optimal
-
+	// Choose Algorithm
+	algo, err := solver.CreateAlgorithm(algoType)
+	if err != nil {
+		return problem.Solution{}, fmt.Errorf(
+			"The Solve() function was given an unknown solver type: %v",
+			algoType,
+		)
 	}
 
-	return problem.Solution{}, nil
+	// Apply algorithm
+	return algo.Solve(solver.InternalState)
 
 }

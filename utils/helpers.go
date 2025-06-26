@@ -1,4 +1,4 @@
-package simplexSolver
+package utils
 
 import (
 	"fmt"

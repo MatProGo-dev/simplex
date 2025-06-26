@@ -6,6 +6,7 @@ import (
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	"gonum.org/v1/gonum/mat"
+	"matprogo.dev/solvers/simplex/utils"
 )
 
 type Tableau struct {
@@ -34,7 +35,7 @@ func GetInitialTableau(problemIn *problem.OptimizationProblem) (Tableau, error) 
 	}
 
 	// The non-basic variables are the original variables
-	tableau.NonBasicVariables = SetDifferenceOfVariables(
+	tableau.NonBasicVariables = utils.SetDifferenceOfVariables(
 		problemInStandardForm.Variables,
 		slackVariables,
 	)
@@ -72,18 +73,18 @@ func (tableau *Tableau) ComputeFeasibleSolution() (*mat.VecDense, error) {
 	}
 
 	// Create the matrix of coefficients of the basic variables
-	N, err := SliceMatrixAccordingToVariableSet(
-		tableau.Problem,
+	N, err := utils.SliceMatrixAccordingToVariableSet(
 		A,
+		tableau.Problem.Variables,
 		tableau.NonBasicVariables,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	B, err := SliceMatrixAccordingToVariableSet(
-		tableau.Problem,
+	B, err := utils.SliceMatrixAccordingToVariableSet(
 		A,
+		tableau.Problem.Variables,
 		tableau.BasicVariables,
 	)
 	if err != nil {
