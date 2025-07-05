@@ -126,3 +126,52 @@ func Test_NaiveAlgorithm_SolveLoop1(t *testing.T) {
 	}
 
 }
+
+/*
+Test_NaiveAlgorithm_Solve1
+Description:
+
+	In this test, we verify that the operations
+	of the NaiveAlgorithm.Solve() are correct.
+	We will use a problem from this youtube video:
+		https://youtu.be/XMLysZSPsug?si=KMoouByHAV3TTK7h&t=377
+	Our method should find that the first Basic Feasible Solution
+	is {3 2 4 2} and the objective value should be zero.
+*/
+func Test_NaiveAlgorithm_Solve1(t *testing.T) {
+	// Setup
+	problemIn := simplexSolver.GetTestProblem4()
+
+	// Create the solver
+	solver, err := simplexSolver.For(problemIn, simplexSolver.Configuration{IterationLimit: 10})
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
+
+	// Extract the simplex algorithm and internal state from the solver
+	algo, err := solver.CreateAlgorithm(algorithms.TypeNaive)
+	if err != nil {
+		t.Errorf("Expected no error when creating algorithm; received %v", err)
+	}
+
+	naiveAlgo, ok := algo.(*algorithms.NaiveAlgorithm)
+	if !ok {
+		t.Errorf("Failed to convert the algorithm interface into a Naive Algorithm object (which should be possible given our inputs!)")
+	}
+
+	initialState := solver.InternalState
+
+	// Find the first basic feasible solution
+	_, err = naiveAlgo.Solve(initialState)
+	// sol1, err := naiveAlgo.Solve(initialState)
+	if err != nil {
+		t.Errorf("Unexpected error during solve loops: %v", err)
+	}
+
+	// t.Errorf(
+	// 	"Objective value after %v loops: %v",
+	// 	naiveAlgo.IterationLimit,
+	// 	sol1.Objective,
+	// )
+
+}

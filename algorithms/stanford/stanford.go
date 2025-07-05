@@ -1,4 +1,4 @@
-package algorithms
+package stanford_algorithm1
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"matprogo.dev/solvers/simplex/utils"
 )
 
-type NaiveAlgorithm struct {
+type StanfordAlgorithm struct {
 	ProblemInStandardForm *problem.OptimizationProblem
 	IterationLimit        int
 }
@@ -41,7 +41,7 @@ Description:
 	We assume that the value of the non-basic variables is given
 	(i.e., they are already saved in the state).
 */
-func (algo *NaiveAlgorithm) ComputeFeasibleBasicSolution(state AlgorithmInternalState) (*mat.VecDense, error) {
+func (algo *StanfordAlgorithm) ComputeFeasibleBasicSolution(state StanfordAlgorithmState) (*mat.VecDense, error) {
 	// Setup
 	fmt.Printf("Computing feasible solution...\n")
 	fmt.Printf("Problem: %v\n", algo.ProblemInStandardForm)
@@ -58,7 +58,7 @@ func (algo *NaiveAlgorithm) ComputeFeasibleBasicSolution(state AlgorithmInternal
 	N, err := utils.SliceMatrixAccordingToVariableSet(
 		A,
 		algo.ProblemInStandardForm.Variables,
-		state.NonBasicVariables,
+		state.NonBasicVariables(),
 	)
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ Description:
 	input and the value of the non-basic variables is given
 	in the state of the solver.
 */
-func (algo *NaiveAlgorithm) ComputeObjectiveFunctionValueWithFeasibleBasicSolution(state AlgorithmInternalState, xBasic *mat.VecDense) (float64, error) {
+func (algo *StanfordAlgorithm) ComputeObjectiveFunctionValueWithFeasibleBasicSolution(state StanfordAlgorithmState, xBasic *mat.VecDense) (float64, error) {
 	// Setup
 	fmt.Printf("Computing objective function value...\n")
 	allVars := algo.ProblemInStandardForm.Variables
@@ -148,7 +148,7 @@ func (algo *NaiveAlgorithm) ComputeObjectiveFunctionValueWithFeasibleBasicSoluti
 	cN, err := utils.SliceVectorAccordingToVariableSet(
 		symbolic.VecDenseToKVector(c),
 		allVars,
-		state.NonBasicVariables,
+		state.NonBasicVariables(),
 	)
 	if err != nil {
 		return 0.0, err
@@ -168,9 +168,9 @@ func (algo *NaiveAlgorithm) ComputeObjectiveFunctionValueWithFeasibleBasicSoluti
 	return float64(zAsK), nil
 }
 
-func (algo *NaiveAlgorithm) Solve(initialState AlgorithmInternalState) (problem.Solution, error) {
+func (algo *StanfordAlgorithm) Solve(initialState StanfordAlgorithmState) (problem.Solution, error) {
 	// Setup
-	var stateII AlgorithmInternalState = initialState
+	var stateII StanfordAlgorithmState = initialState
 
 	// Compute the feasible solution for the current choice of
 	// basic variables
