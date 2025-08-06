@@ -1,6 +1,6 @@
-github.com/MatProGo-dev/MatProInterface.go v0.5.3-1 h1:naGHDQfrVUZIykSKpNaPUab63aHIUP2uwXGaKxq1j3k=
-github.com/MatProGo-dev/MatProInterface.go v0.5.3-1/go.mod h1:SsYEXpAerz3HjjJOIyKG9eJLy9/p9p5xI0N2T2LtUQE=
-github.com/MatProGo-dev/SymbolicMath.go v0.2.2 h1:U9nLLgtslRXbweCsgW9uSw8AvoGMgjq2luQtXIuN3eA=
-github.com/MatProGo-dev/SymbolicMath.go v0.2.2/go.mod h1:tW8thj4pkaTV9lFNU3OCKmwQ3mZ2Eim6S4JpHRDfRvU=
+github.com/MatProGo-dev/MatProInterface.go v0.5.4-1 h1:dme0hN4oN3davFuNnTgz1yJthRLeFiKY/F2J5F98g1s=
+github.com/MatProGo-dev/MatProInterface.go v0.5.4-1/go.mod h1:zKNrZ+YsG9kLrSkPc32ptUXTHg+Z5iYoye+MYl3F9zQ=
+github.com/MatProGo-dev/SymbolicMath.go v0.2.3 h1:ffkUVU1oKzw2jj6fEu4BKW2YEYOWq55fwD7FOP9cY6k=
+github.com/MatProGo-dev/SymbolicMath.go v0.2.3/go.mod h1:tW8thj4pkaTV9lFNU3OCKmwQ3mZ2Eim6S4JpHRDfRvU=
 gonum.org/v1/gonum v0.16.0 h1:5+ul4Swaf3ESvrOnidPp4GZbzf0mxVQpDCYUQE7OJfk=
 gonum.org/v1/gonum v0.16.0/go.mod h1:fef3am4MQ93R2HHpKnLk4/Tbh/s0+wqD5nfa6Pnwy4E=

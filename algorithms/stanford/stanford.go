@@ -58,7 +58,7 @@ func (algo *StanfordAlgorithm) ComputeFeasibleBasicSolution(state StanfordAlgori
 	N, err := utils.SliceMatrixAccordingToVariableSet(
 		A,
 		algo.ProblemInStandardForm.Variables,
-		state.NonBasicVariables(),
+		state.GetNonBasicVariables(),
 	)
 	if err != nil {
 		return nil, err
@@ -148,7 +148,7 @@ func (algo *StanfordAlgorithm) ComputeObjectiveFunctionValueWithFeasibleBasicSol
 	cN, err := utils.SliceVectorAccordingToVariableSet(
 		symbolic.VecDenseToKVector(c),
 		allVars,
-		state.NonBasicVariables(),
+		state.GetNonBasicVariables(),
 	)
 	if err != nil {
 		return 0.0, err

@@ -10,6 +10,9 @@ import (
 	"matprogo.dev/solvers/simplex/utils"
 )
 
+// TODO: Change BasicVariables name to be lower case and make
+// a new method BasicVariables() that returns the basic variables
+// in the state. This will help with consistency and avoid confusion.
 type StanfordAlgorithmState struct {
 	AllVariables   []symbolic.Variable
 	BasicVariables []symbolic.Variable
@@ -40,11 +43,8 @@ func (state *StanfordAlgorithmState) Check() error {
 	if state.B == nil {
 		return fmt.Errorf("StanfordAlgorithmState: B vector is nil.")
 	}
-	if state.CBasic == nil {
-		return fmt.Errorf("StanfordAlgorithmState: CBasic vector is nil.")
-	}
-	if state.CNonBasic == nil {
-		return fmt.Errorf("StanfordAlgorithmState: CNonBasic vector is nil.")
+	if state.C == nil {
+		return fmt.Errorf("StanfordAlgorithmState: C vector is nil.")
 	}
 
 	// Check dimensions of A
@@ -85,13 +85,23 @@ func (state *StanfordAlgorithmState) Check() error {
 }
 
 /*
-NonBasicVariables
+GetBasicVariables
+Description:
+
+	Returns the basic variables in the current state of the algorithm.
+*/
+func (state *StanfordAlgorithmState) GetBasicVariables() []symbolic.Variable {
+	return state.BasicVariables
+}
+
+/*
+GetNonBasicVariables
 Description:
 
 	Returns the non-basic variables in the current state of the algorithm.
 	This should be all variables that are not part of the basic variables.
 */
-func (state *StanfordAlgorithmState) NonBasicVariables() []symbolic.Variable {
+func (state *StanfordAlgorithmState) GetNonBasicVariables() []symbolic.Variable {
 	return utils.SetDifferenceOfVariables(state.AllVariables, state.BasicVariables)
 }
 
@@ -112,7 +122,7 @@ Description:
 	Returns the number of non-basic variables in the current state of the algorithm.
 */
 func (state *StanfordAlgorithmState) NumberOfNonBasicVariables() int {
-	return len(state.NonBasicVariables())
+	return len(state.GetNonBasicVariables())
 }
 
 /*
@@ -164,7 +174,7 @@ func (state *StanfordAlgorithmState) ANonBasic() (*mat.Dense, error) {
 	ANonBasic, err := utils.SliceMatrixAccordingToVariableSet(
 		getKMatrix.From(A),
 		state.AllVariables,
-		state.NonBasicVariables(),
+		state.GetNonBasicVariables(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("StanfordAlgorithmState: Failed to slice A matrix for non-basic variables (%v)", err)
@@ -191,7 +201,7 @@ func (state *StanfordAlgorithmState) CBasic() (*mat.VecDense, error) {
 
 	// Slice the cost vector according to the basic variables
 	cBasic, err := utils.SliceVectorAccordingToVariableSet(
-		getKVector.From(state.CBasic),
+		getKVector.From(state.C),
 		state.AllVariables,
 		state.BasicVariables,
 	)
@@ -222,7 +232,7 @@ func (state *StanfordAlgorithmState) CNonBasic() (*mat.VecDense, error) {
 	cNonBasic, err := utils.SliceVectorAccordingToVariableSet(
 		getKVector.From(state.C),
 		state.AllVariables,
-		state.NonBasicVariables(),
+		state.GetNonBasicVariables(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("StanfordAlgorithmState: Failed to slice cost vector for non-basic variables (%v)", err)
@@ -250,45 +260,40 @@ Returns:
   - A pointer to the reduced cost vector (mat.VecDense) if successful.
   - An error if the state is invalid or if the computation fails.
 */
-func (state *StanfordAlgorithmState) ReducedCostVector() (*mat.VecDense, error) {
+func (state *StanfordAlgorithmState) GetReducedCostVector() (*mat.VecDense, error) {
 	// Check the state for validity
 	err := state.Check()
 	if err != nil {
 		return nil, err // Invalid state, cannot compute reduced costs
 	}
 
-	// Invert A_N if possible
-	ANonBasic, err := state.ANonBasic()
+	// Invert A_B if possible
+	ABasic, err := state.ABasic()
 	if err != nil {
 		return nil, fmt.Errorf("StanfordAlgorithmState: Failed to get ANonBasic matrix (%v)", err)
 
 	}
 
-	var ANInv mat.Dense
-	err = ANInv.Inverse(ANonBasic)
+	var ABasicInv mat.Dense
+	err = ABasicInv.Inverse(ABasic)
 	if err != nil {
 		return nil, fmt.Errorf("StanfordAlgorithmState: Inversion failed, cannot compute reduced costs (%v)", err)
 	}
 
-	// Compute c_B^T * A_N^(-1) * A_B
+	// Compute c_B^T * A_B^(-1) * A
 	cBasic, err := state.CBasic()
 	if err != nil {
 		return nil, fmt.Errorf("StanfordAlgorithmState: Failed to get CBasic vector (%v)", err)
 	}
 
 	var temp mat.Dense
-	temp.Mul(&ANInv, state.A)
+	temp.Mul(&ABasicInv, state.A)
 	var reducedCostT mat.VecDense
 	reducedCostT.MulVec(temp.T(), cBasic)
 
 	// Compute the final reduced cost vector
-	cNonBasic, err := state.CNonBasic()
-	if err != nil {
-		return nil, fmt.Errorf("StanfordAlgorithmState: Failed to get CNonBasic vector (%v)", err)
-	}
-
 	var finalReducedCost mat.VecDense
-	finalReducedCost.SubVec(cNonBasic, &reducedCostT)
+	finalReducedCost.SubVec(state.C, &reducedCostT)
 
 	return &finalReducedCost, nil
 }
