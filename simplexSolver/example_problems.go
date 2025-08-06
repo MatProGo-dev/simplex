@@ -15,7 +15,7 @@ func GetTestProblem1() *problem.OptimizationProblem {
 	x := out.AddVariableVector(2)
 
 	// Create Basic Objective
-	c := getKVector.From([]float64{1.0, 2.0})
+	c := getKVector.From([]float64{-1.0, -2.0})
 	out.SetObjective(
 		c.Transpose().Multiply(x),
 		problem.SenseMinimize,
@@ -44,7 +44,7 @@ func GetTestProblem2() *problem.OptimizationProblem {
 	x := out.AddVariableVector(2)
 
 	// Create Basic Objective
-	c := getKVector.From([]float64{1.0, 2.0})
+	c := getKVector.From([]float64{-1.0, -2.0})
 	out.SetObjective(
 		c.Transpose().Multiply(x),
 		problem.SenseMinimize,
@@ -69,7 +69,7 @@ func GetTestProblem2() *problem.OptimizationProblem {
 		x.AtVec(0).Plus(x.AtVec(1)).LessEq(1.5),
 	)
 
-	// 4. x1 >= 1
+	// 4. x1 <= 1
 	out.Constraints = append(
 		out.Constraints,
 		x.AtVec(0).LessEq(1.0),
