@@ -57,10 +57,5 @@ func (state *AlgorithmInternalState) ToTableau(standardForm *problem.Optimizatio
 		)
 	}
 
-	return utils.Tableau{
-		BasicVariables:    state.BasicVariables,
-		NonBasicVariables: state.NonBasicVariables,
-		NonBasicValues:    state.NonBasicValues,
-		Problem:           standardForm,
-	}, nil
+	return utils.GetInitialTableauFrom(standardForm)
 }

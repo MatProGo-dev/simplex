@@ -297,3 +297,57 @@ func (state *StanfordAlgorithmState) GetReducedCostVector() (*mat.VecDense, erro
 
 	return &finalReducedCost, nil
 }
+
+/*
+ComputeMinimumRatioTest
+Description:
+
+	Computes the minimum ratio test for the current state of the algorithm.
+	Returns the outgoing variable xO with its associated increase, theta.
+*/
+func (state *StanfordAlgorithmState) ComputeMinimumRatioTest(enteringVarIndex int) (symbolic.Variable, float64, error) {
+	// Check the state for validity
+	err := state.Check()
+	if err != nil {
+		return symbolic.Variable{}, 0.0, err // Invalid state, cannot compute minimum ratio test
+	}
+
+	// Compute (ABasic)^(-1) * A's e-th column
+	var ABasicInv mat.Dense
+	ABasic, err := state.ABasic()
+	if err != nil {
+		return symbolic.Variable{}, 0.0, fmt.Errorf("StanfordAlgorithmState: Failed to get ABasic matrix (%v)", err)
+	}
+	ABasicInv.Inverse(ABasic)
+
+	var ABasicAe mat.VecDense
+	ABasicAe.MulVec(&ABasicInv, state.A.ColView(enteringVarIndex))
+
+	// Compute the (ABasic)^(-1) * b's vector
+	var ABasicB mat.VecDense
+	ABasicB.MulVec(&ABasicInv, state.B)
+
+	// Find the entering variable (most negative reduced cost)
+	theta := 0.0
+	outgoingVarIndex := -1
+	for ii := 0; ii < ABasicB.Len(); ii++ {
+		// Check to see if ABasicAe is positive
+		if ABasicAe.AtVec(ii) <= 0.0 {
+			continue // Skip this variable, it cannot be the outgoing variable
+		}
+		// Compute the ratio
+		ratio := ABasicB.AtVec(ii) / ABasicAe.AtVec(ii)
+		if ratio < theta {
+			theta = ratio
+			outgoingVarIndex = ii
+		}
+	}
+
+	if outgoingVarIndex == -1 {
+		return symbolic.Variable{}, 0.0, fmt.Errorf("StanfordAlgorithmState: No entering variable found (all reduced costs are non-negative)")
+	}
+
+	outgoingVariable := state.GetBasicVariables()[outgoingVarIndex]
+
+	return outgoingVariable, theta, nil
+}

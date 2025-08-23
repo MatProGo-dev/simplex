@@ -168,6 +168,49 @@ func (algo *StanfordAlgorithm) ComputeObjectiveFunctionValueWithFeasibleBasicSol
 	return float64(zAsK), nil
 }
 
+/*
+ComputeSolutionFromState
+Description:
+
+	Computes the many components of the solution from the current state of the algorithm.
+	It computes:
+	- The value of the objective function
+	- The values of the basic variables
+	- The values of the non-basic variables
+*/
+func (algo *StanfordAlgorithm) ComputeSolutionFromState(state StanfordAlgorithmState) (problem.Solution, error) {
+	// Setup
+	fmt.Printf("Computing solution from state...\n")
+	solution := problem.Solution{
+		Status: problem.OptimizationStatus_OPTIMAL,
+	}
+
+	// Compute the feasible solution of the basic variables
+	xBasic, err := algo.ComputeFeasibleBasicSolution(state)
+	if err != nil {
+		return solution, fmt.Errorf("StanfordAlgorithm: Failed to compute feasible basic solution (%v)", err)
+	}
+
+	// Compute the value of the objective function
+	objValue, err := algo.ComputeObjectiveFunctionValueWithFeasibleBasicSolution(state, xBasic)
+	if err != nil {
+		return solution, fmt.Errorf("StanfordAlgorithm: Failed to compute objective function value (%v)", err)
+	}
+	solution.Objective = objValue
+
+	// Set the values of the basic variables
+	for ii, bv := range state.BasicVariables {
+		solution.Values[bv.ID] = xBasic.AtVec(ii)
+	}
+
+	// Set the values of the non-basic variables
+	for jj, nv := range state.GetNonBasicVariables() {
+		solution.Values[nv.ID] = state.NonBasicValues.AtVec(jj)
+	}
+
+	return solution, nil
+}
+
 func (algo *StanfordAlgorithm) Solve(initialState StanfordAlgorithmState) (problem.Solution, error) {
 	// Setup
 	var stateII StanfordAlgorithmState = initialState
@@ -175,6 +218,59 @@ func (algo *StanfordAlgorithm) Solve(initialState StanfordAlgorithmState) (probl
 	// Compute the feasible solution for the current choice of
 	// basic variables
 	for iter := 0; iter < algo.IterationLimit; iter++ {
+		// Test for Termination
+		r, err := stateII.GetReducedCostVector()
+		if err != nil {
+			return problem.Solution{}, fmt.Errorf(
+				"StanfordAlgorithm: Failed to get reduced cost vector (%v) at iteration #%v",
+				err,
+				iter,
+			)
+		}
+
+		// Find the entering variable (most negative reduced cost)
+		minReducedCost := 0.0
+		enteringVarIndex := -1
+		for ii := 0; ii < r.Len(); ii++ {
+			if r.AtVec(ii) < minReducedCost {
+				minReducedCost = r.AtVec(ii)
+				enteringVarIndex = ii
+			}
+		}
+
+		if enteringVarIndex == -1 {
+			// No entering variable found, the solution is optimal
+			fmt.Printf("Optimal solution found at iteration %d\n", iter)
+			return algo.ComputeSolutionFromState(stateII)
+		}
+
+		// Check to see if vector (ABasic)^(-1) * A 's e-th vector contains a positive entry
+		var ABasicInv mat.Dense
+		ABasic, err := stateII.ABasic()
+		if err != nil {
+			return problem.Solution{}, fmt.Errorf("StanfordAlgorithm: Failed to get ABasic matrix (%v)", err)
+		}
+		ABasicInv.Inverse(ABasic)
+		var ABasicAe mat.VecDense
+		ABasicAe.MulVec(&ABasicInv, stateII.A.ColView(enteringVarIndex))
+
+		objectiveIsUnboundedBelow := true
+		for ii := 0; ii < ABasicAe.Len(); ii++ {
+			if ABasicAe.AtVec(ii) > 0.0 {
+				// Found a positive entry, we can proceed with the pivot operation
+				fmt.Printf("Found a positive entry in ABasic^(-1) * A at index %d\n", ii)
+				objectiveIsUnboundedBelow = false
+			}
+		}
+		if objectiveIsUnboundedBelow {
+			return problem.Solution{}, fmt.Errorf(
+				"StanfordAlgorithm: Objective function is unbounded below, no solution exists at iteration %d",
+				iter,
+			)
+		}
+
+		// Compute the minimum ratio test
+
 		// Compute the feasible Solution of the Basic variables
 		xBasicII, err := algo.ComputeFeasibleBasicSolution(stateII)
 		if err != nil {
