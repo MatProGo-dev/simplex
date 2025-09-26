@@ -3,183 +3,9 @@ package utils
 import (
 	"fmt"
 
-	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
+	"gonum.org/v1/gonum/mat"
 )
-
-/*
-ToStandardFormWithSlackVariables
-Description:
-
-	Transforms the given linear program (represented in an OptimizationProblem object)
-	into a standard form (i.e., only linear equality constraints and a linear objective function).
-
-		sense c^T * x
-		subject to
-		A * x = b
-		x >= 0
-
-	Where A is a matrix of coefficients, b is a vector of constants, and c is the vector of coefficients
-	for the objective function. This method also returns the slack variables (i.e., the variables that
-	are added to the problem to convert the inequalities into equalities).
-*/
-func ToStandardFormWithSlackVariables(problemIn *problem.OptimizationProblem) (*problem.OptimizationProblem, []symbolic.Variable) {
-
-	// Setup
-
-	// Create a new problem
-	problemInStandardForm := problem.NewProblem(
-		problemIn.Name + " (In Standard Form)",
-	)
-
-	// Copy over each of the
-
-	// Add all variables to the new problem
-	mapFromInToNewVariables := make(map[symbolic.Variable]symbolic.Expression)
-	for _, varII := range problemIn.Variables {
-		problemInStandardForm.AddVariable()
-		nVariables := len(problemInStandardForm.Variables)
-		mapFromInToNewVariables[varII] = problemInStandardForm.Variables[nVariables-1]
-	}
-
-	// Add all constraints to the new problem
-	slackVariables := []symbolic.Variable{}
-	for _, constraint := range problemIn.Constraints {
-		// Create a new expression by substituting the variables according
-		// to the map we created above
-		oldLHS := constraint.Left()
-		newLHS := oldLHS.SubstituteAccordingTo(mapFromInToNewVariables)
-
-		oldRHS := constraint.Right()
-		newRHS := oldRHS.SubstituteAccordingTo(mapFromInToNewVariables)
-
-		switch constraint.ConstrSense() {
-		case symbolic.SenseEqual:
-			// No need to do anything
-		case symbolic.SenseGreaterThanEqual:
-			switch concreteConstraint := constraint.(type) {
-			case symbolic.ScalarConstraint:
-				// Add a new SCALAR slack variable to the right hand side
-				problemInStandardForm.AddVariableClassic(0.0, symbolic.Infinity.Constant(), symbolic.Continuous)
-				nVariables := len(problemInStandardForm.Variables)
-				problemInStandardForm.Variables[nVariables-1].Name = problemInStandardForm.Variables[nVariables-1].Name + " (slack)"
-				slackVariables = append(
-					slackVariables,
-					problemInStandardForm.Variables[nVariables-1],
-				)
-
-				newRHS = newRHS.Plus(problemInStandardForm.Variables[nVariables-1])
-			case symbolic.VectorConstraint:
-				// Add a new VECTOR slack variable to the right hand side
-				// TODO(Kwesi): Revisit this when we have a proper Len() method for constraints.
-				dims := concreteConstraint.Dims()
-				nRows := dims[0]
-				problemInStandardForm.AddVariableVectorClassic(
-					nRows,
-					0.0,
-					symbolic.Infinity.Constant(),
-					symbolic.Continuous,
-				)
-				nVariables := len(problemInStandardForm.Variables)
-				for jj := nRows - 1; jj >= nRows; jj-- {
-					problemInStandardForm.Variables[nVariables-1-jj].Name = problemInStandardForm.Variables[nVariables-1-jj].Name + " (slack)"
-					slackVariables = append(
-						slackVariables,
-						problemInStandardForm.Variables[nVariables-1-jj],
-					)
-				}
-
-				// Add the slack variable to the right hand side
-				newRHS = newRHS.Plus(
-					symbolic.VariableVector(problemInStandardForm.Variables[nVariables-1-nRows : nVariables-1]),
-				)
-			default:
-				panic(
-					fmt.Sprintf(
-						"Unexpected constraint type: %T for \"ToStandardFormWithSlackVariables\" with %v sense",
-						constraint,
-						constraint.ConstrSense(),
-					),
-				)
-
-			}
-		case symbolic.SenseLessThanEqual:
-			// Use a switch statement to handle different dimensions of the constraint
-			switch concreteConstraint := constraint.(type) {
-			case symbolic.ScalarConstraint:
-				// Add a new SCALAR slack variable to the left hand side
-				problemInStandardForm.AddVariableClassic(0.0, symbolic.Infinity.Constant(), symbolic.Continuous)
-				nVariables := len(problemInStandardForm.Variables)
-				problemInStandardForm.Variables[nVariables-1].Name = problemInStandardForm.Variables[nVariables-1].Name + " (slack)"
-				slackVariables = append(
-					slackVariables,
-					problemInStandardForm.Variables[nVariables-1],
-				)
-				newLHS = newLHS.Plus(problemInStandardForm.Variables[nVariables-1])
-			case symbolic.VectorConstraint:
-				// Add a new VECTOR slack variable to the left hand side
-				// TODO(Kwesi): Revisit this when we have a proper Len() method for constraints.
-				dims := concreteConstraint.Dims()
-				nRows := dims[0]
-				problemInStandardForm.AddVariableVectorClassic(
-					nRows,
-					0.0,
-					symbolic.Infinity.Constant(),
-					symbolic.Continuous,
-				)
-				nVariables := len(problemInStandardForm.Variables)
-				for jj := nRows - 1; jj >= 0; jj-- {
-					problemInStandardForm.Variables[nVariables-1-jj].Name = problemInStandardForm.Variables[nVariables-1-jj].Name + " (slack)"
-					slackVariables = append(
-						slackVariables,
-						problemInStandardForm.Variables[nVariables-1-jj],
-					)
-					// fmt.Printf("Slack variable %d: %v\n", jj, problemInStandardForm.Variables[nVariables-1-jj])
-				}
-				// Add the slack variable to the left hand side
-				newLHS = newLHS.Plus(
-					symbolic.VariableVector(problemInStandardForm.Variables[nVariables-1-nRows : nVariables-1]),
-				)
-			default:
-				panic(
-					fmt.Sprintf(
-						"Unexpected constraint type %T for \"ToStandardFormWithSlackVariables\" with %v sense",
-						constraint,
-						constraint.ConstrSense(),
-					),
-				)
-			}
-		default:
-			panic("Unknown constraint sense: " + constraint.ConstrSense().String())
-		}
-
-		newConstraint := newLHS.Comparison(
-			newRHS,
-			symbolic.SenseEqual,
-		)
-
-		// Add the new constraint to the problem
-		problemInStandardForm.Constraints = append(
-			problemInStandardForm.Constraints,
-			newConstraint,
-		)
-	}
-
-	// Now, let's create the new objective function by substituting the variables
-	// according to the map we created above
-	newObjectiveExpression := problemIn.Objective.Expression.SubstituteAccordingTo(
-		mapFromInToNewVariables,
-	)
-	problemInStandardForm.SetObjective(
-		newObjectiveExpression,
-		problemIn.Objective.Sense,
-	)
-
-	fmt.Printf("The slack variables are: %v\n", slackVariables)
-
-	// Return the new problem and the slack variables
-	return problemInStandardForm, slackVariables
-}
 
 /*
 SetDifferenceOfVariables
@@ -280,16 +106,15 @@ func SliceVectorAccordingToVariableSet(
 	subsetOfVariables []symbolic.Variable,
 ) (symbolic.KVector, error) {
 	// Setup
-	dims := vectorIn.Dims()
 	out := symbolic.ZerosVector(len(subsetOfVariables))
 	vectorInAsDense := vectorIn.ToVecDense()
 
 	// Check that the number of variables in the problem matches the number of columns in the matrix
-	if len(originalSetOfVariables) != dims[0] {
+	if len(originalSetOfVariables) != vectorIn.Len() {
 		return nil, fmt.Errorf(
 			"Number of variables in the problem (%d) does not match number of columns in the matrix (%d)",
 			len(originalSetOfVariables),
-			dims[0],
+			vectorIn.Len(),
 		)
 	}
 
@@ -314,4 +139,66 @@ func SliceVectorAccordingToVariableSet(
 	}
 
 	return symbolic.VecDenseToKVector(out), nil
+}
+
+/*
+DefinePartialAssignmentVector
+Description:
+
+	This method takes a vector `vIn` of length N and uses
+	it to create a new vector `vExtended` of length M (M >= N),
+	The new vector is a vector representing the partial
+	assignment of values in the set `originalSetOfVariables`.
+	We assign the values `vIn` to the entries corresponding
+	to `subsetOfVariables`; the rest are left zero.
+*/
+func DefinePartialAssignmentVector(
+	vIn *mat.VecDense,
+	subsetOfVariables []symbolic.Variable,
+	originalSetOfVariables []symbolic.Variable,
+) (*mat.VecDense, error) {
+	// Input Checking
+	// - Input Vector is the same length as the subset
+	if vIn.Len() != len(subsetOfVariables) {
+		return nil, fmt.Errorf(
+			"The length of the input (%v) must match the length of the subset of variables(%v)!",
+			vIn.Len(),
+			len(subsetOfVariables),
+		)
+	}
+
+	//- subsetOfVariables is a strict subset of originalSetOfVariables
+	setDifference := SetDifferenceOfVariables(subsetOfVariables, originalSetOfVariables)
+	if len(setDifference) != 0 {
+		return nil, fmt.Errorf(
+			"Subset of variables (%v) is not a strict subset of original set of variables (%v)",
+			subsetOfVariables,
+			originalSetOfVariables,
+		)
+	}
+
+	// Setup
+	M := len(originalSetOfVariables)
+	out := symbolic.ZerosVector(M)
+
+	// Assign values to out
+	for ii := 0; ii < len(subsetOfVariables); ii++ {
+		// Find the variable
+		sII := subsetOfVariables[ii]
+
+		// Find the index of sII
+		indexOfII, err := symbolic.FindInSlice(sII, originalSetOfVariables)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"couldn't find the index of variable %v in the list of variables %v",
+				sII,
+				originalSetOfVariables,
+			)
+		}
+
+		// Assign the value at index ii in vIn to out at index indexOfII
+		out.SetVec(indexOfII, vIn.AtVec(ii))
+	}
+
+	return &out, nil
 }

@@ -5,9 +5,9 @@ import (
 
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
+	"github.com/MatProGo-dev/simplex/algorithms"
+	"github.com/MatProGo-dev/simplex/utils"
 	"gonum.org/v1/gonum/mat"
-	"matprogo.dev/solvers/simplex/algorithms"
-	"matprogo.dev/solvers/simplex/utils"
 )
 
 type SimplexSolver struct {

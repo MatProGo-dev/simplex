@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
-	"matprogo.dev/solvers/simplex/algorithms/dictionary"
+	"github.com/MatProGo-dev/simplex/algorithms/dictionary"
 )
 
 /*

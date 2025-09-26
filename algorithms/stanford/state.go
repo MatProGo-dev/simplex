@@ -6,8 +6,8 @@ import (
 	getKMatrix "github.com/MatProGo-dev/SymbolicMath.go/get/KMatrix"
 	getKVector "github.com/MatProGo-dev/SymbolicMath.go/get/KVector"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
+	"github.com/MatProGo-dev/simplex/utils"
 	"gonum.org/v1/gonum/mat"
-	"matprogo.dev/solvers/simplex/utils"
 )
 
 // TODO: Change BasicVariables name to be lower case and make

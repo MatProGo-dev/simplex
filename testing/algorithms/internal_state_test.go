@@ -5,8 +5,8 @@ import (
 
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
+	"github.com/MatProGo-dev/simplex/algorithms"
 	"gonum.org/v1/gonum/mat"
-	"matprogo.dev/solvers/simplex/algorithms"
 )
 
 /*

@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
+	simplexSolver "github.com/MatProGo-dev/simplex/simplexSolver"
+	"github.com/MatProGo-dev/simplex/utils"
 	"gonum.org/v1/gonum/mat"
-	simplexSolver "matprogo.dev/solvers/simplex/simplexSolver"
-	"matprogo.dev/solvers/simplex/utils"
 )
 
 /*

@@ -5,9 +5,9 @@ import (
 
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
+	"github.com/MatProGo-dev/simplex/algorithms"
+	"github.com/MatProGo-dev/simplex/utils"
 	"gonum.org/v1/gonum/mat"
-	"matprogo.dev/solvers/simplex/algorithms"
-	"matprogo.dev/solvers/simplex/utils"
 )
 
 type TableauAlgorithmState struct {
@@ -61,13 +61,9 @@ func (state *TableauAlgorithmState) Check() error {
 	}
 
 	// Check that the number of columns is equal to len(AllVariables) + 1
-	_, nTableauCols := state.Tableau.AsCompressedMatrix.Dims()
-	if nTableauCols != len(state.Tableau.Variables)+1 {
-		return fmt.Errorf(
-			"The number of columns in the tableau is %v; expected %v columns.",
-			nTableauCols,
-			len(state.Tableau.Variables)+2,
-		)
+	err := state.Tableau.Check()
+	if err != nil {
+		return err
 	}
 
 	// All Checks passed

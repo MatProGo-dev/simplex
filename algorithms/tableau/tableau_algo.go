@@ -4,10 +4,12 @@ import (
 	"fmt"
 
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
+	"gonum.org/v1/gonum/mat"
 )
 
 type TableauAlgorithm struct {
 	ProblemInStandardForm *problem.OptimizationProblem
+	CurrentSolution       *mat.VecDense
 	IterationLimit        int
 }
 

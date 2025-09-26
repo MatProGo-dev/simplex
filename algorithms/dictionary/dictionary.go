@@ -2,7 +2,7 @@ package dictionary
 
 import (
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
-	"matprogo.dev/solvers/simplex/utils"
+	"github.com/MatProGo-dev/simplex/utils"
 )
 
 /*

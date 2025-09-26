@@ -1,4 +1,4 @@
-module matprogo.dev/solvers/simplex
+module github.com/MatProGo-dev/simplex
 
 go 1.23.0
 

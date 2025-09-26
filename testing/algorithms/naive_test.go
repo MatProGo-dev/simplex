@@ -3,9 +3,9 @@ package algorithms_test
 import (
 	"testing"
 
+	"github.com/MatProGo-dev/simplex/algorithms"
+	"github.com/MatProGo-dev/simplex/simplexSolver"
 	"gonum.org/v1/gonum/mat"
-	"matprogo.dev/solvers/simplex/algorithms"
-	"matprogo.dev/solvers/simplex/simplexSolver"
 )
 
 /*

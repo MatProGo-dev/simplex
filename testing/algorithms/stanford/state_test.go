@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
+	stanford_algorithm1 "github.com/MatProGo-dev/simplex/algorithms/stanford"
+	"github.com/MatProGo-dev/simplex/simplexSolver"
+	"github.com/MatProGo-dev/simplex/utils"
 	"gonum.org/v1/gonum/mat"
-	stanford_algorithm1 "matprogo.dev/solvers/simplex/algorithms/stanford"
-	"matprogo.dev/solvers/simplex/simplexSolver"
-	"matprogo.dev/solvers/simplex/utils"
 )
 
 func TestStanfordAlgorithmState_NonBasicVariables1(t *testing.T) {
