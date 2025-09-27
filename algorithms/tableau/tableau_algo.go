@@ -4,24 +4,52 @@ import (
 	"fmt"
 
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
-	"gonum.org/v1/gonum/mat"
+	tableau_termination "github.com/MatProGo-dev/simplex/algorithms/tableau/termination"
+	"github.com/MatProGo-dev/simplex/utils"
 )
 
 type TableauAlgorithm struct {
-	ProblemInStandardForm *problem.OptimizationProblem
-	CurrentSolution       *mat.VecDense
-	IterationLimit        int
+	IterationLimit int
 }
 
-func (algo *TableauAlgorithm) Solve(initialState TableauAlgorithmState) (problem.Solution, error) {
+func (algo *TableauAlgorithm) CheckTerminationConditions(state TableauAlgorithmState) (tableau_termination.TerminationType, error) {
+	// Input Checking
+	err := state.Check()
+	if err != nil {
+		return tableau_termination.DidNotTerminate, err
+	}
+
+	// Check If the iteration limit has been reached
+	if state.IterationCount >= algo.IterationLimit {
+		return tableau_termination.MaximumIterationsReached, nil
+	}
+
+	// Check that the reduced costs are all non-negative
+	if state.Tableau.CanNotBeImproved() {
+		return tableau_termination.OptimalSolutionFound, nil
+	}
+
+	return tableau_termination.DidNotTerminate, nil
+}
+
+func (algo *TableauAlgorithm) Solve(prob problem.OptimizationProblem) (problem.Solution, error) {
 	// Setup
-	var stateII TableauAlgorithmState = initialState
-	var status problem.OptimizationStatus = problem.OptimizationStatus_INPROGRESS
+
+	// Create initial Tableau state from the problem
+	initialTableau, err := utils.GetInitialTableauFrom(&prob)
+	if err != nil {
+		return problem.Solution{}, fmt.Errorf("there was an issue creating the initial tableau: %v", err)
+	}
+	stateII := TableauAlgorithmState{
+		Tableau:        &initialTableau,
+		IterationCount: 0,
+	}
 
 	// Loop
+	sol := problem.Solution{}
 	for iter := 0; iter < algo.IterationLimit; iter++ {
 		// Test for Termination
-		terminated, err := stateII.CheckTerminationCondition()
+		condition, err := algo.CheckTerminationConditions(stateII)
 		if err != nil {
 			return problem.Solution{},
 				fmt.Errorf(
@@ -31,27 +59,23 @@ func (algo *TableauAlgorithm) Solve(initialState TableauAlgorithmState) (problem
 				)
 		}
 
-		if terminated {
+		if condition != tableau_termination.DidNotTerminate {
+			sol.Status = condition.ToOptimizationStatus()
 			break
 		}
 
-		// Compute XB, y and r
-		_, err = stateII.XBasic()
+		// Update the state
+		stateII, err = stateII.CalculateNextState()
 		if err != nil {
 			return problem.Solution{},
 				fmt.Errorf(
-					"There was an issue computing the value XBasic() at iteration #%v: %v",
+					"There was an issue updating the state at iteration %v: %v",
 					iter,
 					err,
 				)
 		}
 
-		// If we reach the limit, then return limit reached as status
-		if iter == algo.IterationLimit-1 {
-			status = problem.OptimizationStatus_ITERATION_LIMIT
-		}
-
 	}
 
-	return stateII.ToSolution(status), nil
+	return sol, nil
 }

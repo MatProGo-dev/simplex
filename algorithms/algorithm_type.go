@@ -2,4 +2,4 @@ package algorithms
 
 type AlgorithmType int
 
-const TypeNaive AlgorithmType = AlgorithmType(1)
+const TypeNaiveTableau AlgorithmType = AlgorithmType(1)

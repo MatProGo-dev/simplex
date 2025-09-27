@@ -186,3 +186,39 @@ func GetTestProblem4() *problem.OptimizationProblem {
 
 	return out
 }
+
+/*
+GetTestProblem5
+Description:
+
+	Returns the LP from the Youtube video:
+		https://www.youtube.com/watch?v=-7mCHWpQ9Fw&t=883s
+*/
+func GetTestProblem5() *problem.OptimizationProblem {
+	// Setup
+	out := problem.NewProblem("TestProblem5")
+
+	// Create variables
+	x := out.AddVariableVector(2)
+
+	// Create Basic Objective
+	c := getKVector.From([]float64{15.0, 25.0})
+	out.SetObjective(
+		c.Transpose().Multiply(x),
+		problem.SenseMaximize,
+	)
+
+	// Create Constraints
+	A := getKMatrix.From([][]float64{
+		{1.0, 1.0},
+		{0.0, 1.0},
+		{4.0, 5.0},
+		{1.0, 0.0},
+	})
+	b := getKVector.From([]float64{450.0, 300.0, 2000.0, 350.0})
+	out.Constraints = append(out.Constraints, A.Multiply(x).LessEq(b))
+	out.Constraints = append(out.Constraints, x.AtVec(0).GreaterEq(0.0))
+	out.Constraints = append(out.Constraints, x.AtVec(1).GreaterEq(0.0))
+
+	return out
+}

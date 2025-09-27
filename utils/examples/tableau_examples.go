@@ -6,6 +6,13 @@ import (
 	"github.com/MatProGo-dev/simplex/utils"
 )
 
+/*
+GetTableauExample1
+Description:
+
+	Returns a simple tableau from the Youtube video:
+		https://www.youtube.com/watch?v=-7mCHWpQ9Fw&t=883s
+*/
 func GetTableauExample1() (*utils.Tableau, error) {
 	// Setup
 

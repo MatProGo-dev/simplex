@@ -6,6 +6,7 @@ import (
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	"github.com/MatProGo-dev/simplex/algorithms"
+	"github.com/MatProGo-dev/simplex/algorithms/tableau/selection"
 	"github.com/MatProGo-dev/simplex/utils"
 	"gonum.org/v1/gonum/mat"
 )
@@ -142,8 +143,7 @@ Description:
 	Returns the number of constraints as inferred by the size of the tableau.
 */
 func (state *TableauAlgorithmState) NumberOfConstraints() int {
-	nRows, _ := state.Tableau.AsCompressedMatrix.Dims()
-	return nRows - 1
+	return state.Tableau.NumberOfConstraints()
 }
 
 func (state *TableauAlgorithmState) XBasic() (*mat.VecDense, error) {
@@ -235,6 +235,35 @@ func (state *TableauAlgorithmState) GetReducedCostVector() (*mat.VecDense, error
 	finalReducedCost.SubVec(state.C(), &reducedCostT)
 
 	return &finalReducedCost, nil
+}
+
+func (state *TableauAlgorithmState) CalculateNextState() (TableauAlgorithmState, error) {
+	// Input Checking
+	err := state.Check()
+	if err != nil {
+		return TableauAlgorithmState{}, err
+	}
+
+	// Select the pivot column and row (i.e., the entering and exiting variables in the tableau)
+	// Here, we use Bland's Rule to select the entering variable
+	// TODO(Kwesi): Make other rules available
+	selectionRule := selection.BlandsRule{}
+	enteringVarIdx, exitingVarIdx, err := selectionRule.SelectEnteringAndExitingVariables(*state.Tableau)
+	if err != nil {
+		return TableauAlgorithmState{}, fmt.Errorf("TableauAlgorithmState: Failed to select entering and exiting variables (%v)", err)
+	}
+
+	// Create the new tableau
+	newTab, err := state.Tableau.Pivot(enteringVarIdx, exitingVarIdx)
+	if err != nil {
+		return TableauAlgorithmState{}, fmt.Errorf("TableauAlgorithmState: Failed to pivot tableau (%v)", err)
+	}
+
+	// Create the new state
+	return TableauAlgorithmState{
+		Tableau:        &newTab,
+		IterationCount: state.IterationCount + 1,
+	}, nil
 }
 
 func (state *TableauAlgorithmState) ToSolution(currentStatus problem.OptimizationStatus) problem.Solution {
