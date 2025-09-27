@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
+	"github.com/MatProGo-dev/simplex/algorithms/tableau/selection"
 	simplexSolver "github.com/MatProGo-dev/simplex/simplexSolver"
 	"github.com/MatProGo-dev/simplex/utils"
+	"github.com/MatProGo-dev/simplex/utils/examples"
 	"gonum.org/v1/gonum/mat"
 )
 
@@ -149,3 +151,77 @@ func TestComputeFeasibleSolution1(t *testing.T) {
 // 	}
 
 // }
+
+/*
+TestTableau_Pivot1
+Description:
+
+	In this test, we verify that the Pivot() function correctly performs a pivot operation on the tableau.
+
+	We use an example problem from this youtube video:
+		https://www.youtube.com/watch?v=-7mCHWpQ9Fw&t=883s
+	The initial tableau is:
+		[	-15 	-25	  0 	  0 	  0 	  0 	  0 	]
+		[	1 	 	1 	  1 	  0 	  0 	  0 	450		]
+		[	0 	 	1 	  0 	  1 	  0 	  0 	300		]
+		[	4 	 	5 	  0 	  0 	  1 	  0 	2000	]
+		[	1 	 	0 	  0 	  0 	  0 	  1 	350		]
+	And after pivoting using Bland's Rule, we expect the tableau to be:
+		[	-15 	0 	  0 	  25 	  0 	  0 	  7500	]
+		[	1 	 	0 	  1 	  -1 	  0 	  0 	150		]
+		[	0 	 	1 	  0 	  1 	  0 	  0 	300		]
+		[	4 	 	0 	  0 	  -5 	  1 	  0 	500		]
+		[	1 	 	0 	  0 	  0 	  0 	  1 	350		]
+*/
+func TestTableau_Pivot1(t *testing.T) {
+	// Setup
+
+	// Create the test tableau
+	testTableau, err := examples.GetTableauExample1()
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
+
+	t.Errorf("Initial Tableau:\n%v", mat.Formatted(testTableau.AsCompressedMatrix))
+
+	// Create the Bland's Rule selector
+	selectionRule := selection.BlandsRule{}
+
+	// Find the entering and exiting variables
+	enteringVarIdx, exitingVarIdx, err := selectionRule.SelectEnteringAndExitingVariables(*testTableau)
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
+	if enteringVarIdx != 1 {
+		t.Errorf("Expected entering variable index to be 1, but got %d", enteringVarIdx)
+	}
+	if exitingVarIdx != 3 {
+		t.Errorf("Expected exiting variable index to be 3, but got %d", exitingVarIdx)
+	}
+
+	// Perform the pivot operation
+	newTab, err := testTableau.Pivot(enteringVarIdx, exitingVarIdx)
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
+
+	// Compute the tableau as a dense matrix
+	denseTableau := newTab.AsCompressedMatrix
+
+	t.Errorf("New Tableau:\n%v", mat.Formatted(denseTableau))
+
+	// Define the expected tableau
+	expectedTableau := mat.NewDense(5, 7, []float64{
+		-15, 0, 0, 25, 0, 0, 7500,
+		1, 0, 1, -1, 0, 0, 150,
+		0, 1, 0, 1, 0, 0, 300,
+		4, 0, 0, -5, 1, 0, 500,
+		1, 0, 0, 0, 0, 1, 350,
+	})
+
+	// Check that the tableau is correct
+	if !mat.EqualApprox(denseTableau, expectedTableau, 1e-10) {
+		t.Errorf("Expected tableau to be:\n%v\nbut got:\n%v", mat.Formatted(expectedTableau), mat.Formatted(denseTableau))
+	}
+
+}
