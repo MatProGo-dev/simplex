@@ -27,4 +27,5 @@ func main() {
 	// Print the solution
 	solutionMessage, _ := solution.Status.ToMessage()
 	println("Solution Status: ", solutionMessage)
+	println("Objective Value: ", solution.Objective)
 }

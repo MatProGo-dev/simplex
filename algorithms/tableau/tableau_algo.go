@@ -6,6 +6,7 @@ import (
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	tableau_termination "github.com/MatProGo-dev/simplex/algorithms/tableau/termination"
 	"github.com/MatProGo-dev/simplex/utils"
+	"gonum.org/v1/gonum/mat"
 )
 
 type TableauAlgorithm struct {
@@ -61,8 +62,19 @@ func (algo *TableauAlgorithm) Solve(prob problem.OptimizationProblem) (problem.S
 
 		if condition != tableau_termination.DidNotTerminate {
 			sol.Status = condition.ToOptimizationStatus()
+			sol.Objective, err = stateII.CurrentObjectiveValue()
+			if err != nil {
+				return sol,
+					fmt.Errorf(
+						"There was an issue getting the objective value at termination: %v",
+						err,
+					)
+			}
 			break
 		}
+
+		fmt.Println("Iteration: ", iter)
+		fmt.Println("Matrix: ", mat.Formatted(stateII.Tableau.AsCompressedMatrix))
 
 		// Update the state
 		stateII, err = stateII.CalculateNextState()

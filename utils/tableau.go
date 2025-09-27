@@ -272,6 +272,18 @@ func (tableau *Tableau) CNonBasic() (*mat.VecDense, error) {
 	return &cNonBasicAsVecDense, nil
 }
 
+func (tableau *Tableau) D() float64 {
+	// Check that tableau is valid
+	err := tableau.Check()
+	if err != nil {
+		panic(err)
+	}
+
+	// Return the value of d
+	_, nTableauCols := tableau.AsCompressedMatrix.Dims()
+	return tableau.AsCompressedMatrix.At(0, nTableauCols-1)
+}
+
 func (tableau *Tableau) NonBasicVariableIndicies() []int {
 	// Input Processing
 	err := tableau.Check()
@@ -353,7 +365,7 @@ func GetInitialTableauFrom(problemIn *problem.OptimizationProblem) (Tableau, err
 
 	// Transform the problem into the standard form where all constraints
 	// are equality constraints
-	problemInStandardForm, slackVariables, err := problemIn.ToLPStandardForm1()
+	problemInStandardForm, slackVariables, err := problemIn.ToLPStandardForm2()
 	if err != nil {
 		return Tableau{}, err
 	}
@@ -366,18 +378,24 @@ func GetInitialTableauFrom(problemIn *problem.OptimizationProblem) (Tableau, err
 	}
 
 	// Create the matrix
+	// [ A | b ]
 	A, b, err := problemInStandardForm.LinearEqualityConstraintMatrices()
 	if err != nil {
 		return Tableau{}, err
 	}
 	Ab := symbolic.HStack(A, b)
 
+	// Create the cost vector
+	// [ -c^T | -d ]
 	objectiveExpression := problemInStandardForm.Objective.Expression.(symbolic.ScalarExpression)
 	c := objectiveExpression.LinearCoeff(problemInStandardForm.Variables)
+	d := objectiveExpression.Constant()
+
+	c.ScaleVec(-1.0, &c) // We negate c because we are converting from a maximization to a minimization problem
 
 	var cExtended *mat.VecDense = mat.NewVecDense(c.Len()+1, nil)
 	cExtended.CopyVec(&c)
-	cExtended.SetVec(c.Len(), 0.0)
+	cExtended.SetVec(c.Len(), -d)
 
 	tableauMatCondensed := symbolic.VStack(
 		symbolic.VecDenseToKVector(*cExtended).Transpose(),

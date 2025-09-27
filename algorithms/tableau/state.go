@@ -90,10 +90,16 @@ func (state *TableauAlgorithmState) CheckTerminationCondition() (bool, error) {
 	return true, nil
 }
 
-// func GetStateFromInitialProblem(prob problem.OptimizationProblem) TableauAlgorithmState {
-// 	// Setup
+func (state *TableauAlgorithmState) CurrentObjectiveValue() (float64, error) {
+	// Input Checking
+	err := state.Check()
+	if err != nil {
+		return 0.0, err
+	}
 
-// }
+	// Setup
+	return state.Tableau.D(), nil
+}
 
 /*
 GetBasicVariables
