@@ -1,4 +1,4 @@
-package simplexSolver
+package examples
 
 import (
 	"github.com/MatProGo-dev/MatProInterface.go/problem"

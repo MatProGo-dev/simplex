@@ -5,6 +5,7 @@ import (
 
 	"github.com/MatProGo-dev/simplex/algorithms"
 	"github.com/MatProGo-dev/simplex/simplexSolver"
+	"github.com/MatProGo-dev/simplex/utils/examples"
 	"gonum.org/v1/gonum/mat"
 )
 
@@ -33,7 +34,7 @@ Description:
 */
 func Test_NaiveAlgorithm_ComputeFeasibleSolution1(t *testing.T) {
 	// Setup
-	problemIn := simplexSolver.GetTestProblem3()
+	problemIn := examples.GetTestProblem3()
 
 	// Create the solver
 	solver, err := simplexSolver.For(problemIn, simplexSolver.Configuration{IterationLimit: 100})
@@ -80,7 +81,7 @@ Description:
 */
 func Test_NaiveAlgorithm_SolveLoop1(t *testing.T) {
 	// Setup
-	problemIn := simplexSolver.GetTestProblem4()
+	problemIn := examples.GetTestProblem4()
 
 	// Create the solver
 	solver, err := simplexSolver.For(problemIn, simplexSolver.Configuration{IterationLimit: 100})
@@ -140,7 +141,7 @@ Description:
 */
 func Test_NaiveAlgorithm_Solve1(t *testing.T) {
 	// Setup
-	problemIn := simplexSolver.GetTestProblem4()
+	problemIn := examples.GetTestProblem4()
 
 	// Create the solver
 	solver, err := simplexSolver.For(problemIn, simplexSolver.Configuration{IterationLimit: 10})

@@ -7,7 +7,6 @@ import (
 
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	"github.com/MatProGo-dev/simplex/algorithms/tableau/selection"
-	simplexSolver "github.com/MatProGo-dev/simplex/simplexSolver"
 	"github.com/MatProGo-dev/simplex/utils"
 	"github.com/MatProGo-dev/simplex/utils/examples"
 	"gonum.org/v1/gonum/mat"
@@ -22,7 +21,7 @@ Description:
 */
 func TestGetInitialTableau1(t *testing.T) {
 	// Setup
-	problemIn := simplexSolver.GetTestProblem3()
+	problemIn := examples.GetTestProblem3()
 
 	// Create the tableau using the initial state + problem in standard form
 	tableau, err := utils.GetInitialTableauFrom(problemIn)
@@ -81,7 +80,7 @@ Description:
 */
 func TestComputeFeasibleSolution1(t *testing.T) {
 	// Setup
-	problemIn := simplexSolver.GetTestProblem3()
+	problemIn := examples.GetTestProblem3()
 
 	// Create the tableau
 	tableau, err := utils.GetInitialTableauFrom(problemIn)
@@ -182,8 +181,6 @@ func TestTableau_Pivot1(t *testing.T) {
 		t.Errorf("Expected no error, but got: %v", err)
 	}
 
-	t.Errorf("Initial Tableau:\n%v", mat.Formatted(testTableau.AsCompressedMatrix))
-
 	// Create the Bland's Rule selector
 	selectionRule := selection.BlandsRule{}
 
@@ -207,8 +204,6 @@ func TestTableau_Pivot1(t *testing.T) {
 
 	// Compute the tableau as a dense matrix
 	denseTableau := newTab.AsCompressedMatrix
-
-	t.Errorf("New Tableau:\n%v", mat.Formatted(denseTableau))
 
 	// Define the expected tableau
 	expectedTableau := mat.NewDense(5, 7, []float64{
