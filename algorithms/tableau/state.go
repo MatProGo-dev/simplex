@@ -272,6 +272,75 @@ func (state *TableauAlgorithmState) CalculateNextState() (TableauAlgorithmState,
 	}, nil
 }
 
+func (state *TableauAlgorithmState) CalculateOptimalSolution() (mat.VecDense, error) {
+	// Input Checking
+	err := state.Check()
+	if err != nil {
+		return mat.VecDense{}, err
+	}
+
+	// Setup
+	numVars := state.NumberOfVariables()
+	solutionVec := mat.NewVecDense(numVars, nil)
+
+	// Create a linear system of variables consisting of:
+	// - The constraints
+	// - The non-basic variables set to zero
+	A, b := state.A(), state.B()
+	numConstraints, _ := A.Dims()
+	numNonBasic := state.NumberOfVariables() - state.NumberOfConstraints()
+
+	// Augment the A and b matrices with the non-basic variable constraints
+	AAugmented := mat.NewDense(numConstraints+numNonBasic, numVars, nil)
+	AAugmented.Copy(A)
+	bAugmented := mat.NewVecDense(numConstraints+numNonBasic, nil)
+	bAugmented.CopyVec(b)
+
+	fmt.Println("A: ", mat.Formatted(AAugmented))
+
+	// Add the non-basic variable constraints
+	nonBasicVars := state.GetNonBasicVariables()
+	for ii, v := range nonBasicVars {
+		fmt.Println("Adding non-basic variable constraint for variable: ", v)
+		// Find the index of the variable in the tableau
+		vIdxInTableau, _ := symbolic.FindInSlice(v, state.Tableau.Variables)
+		fmt.Println("vIdxInTableau: ", vIdxInTableau)
+		fmt.Println("Targeted row: ", numConstraints+ii)
+		AAugmented.Set(numConstraints+ii, vIdxInTableau, 1.0)
+	}
+	// b is already zero in the new rows, so we don't need to set anything in bAugmented
+
+	// Solve the system of equations
+	err = solutionVec.SolveVec(AAugmented, bAugmented)
+	if err != nil {
+		return mat.VecDense{}, fmt.Errorf("TableauAlgorithmState: Failed to solve for optimal solution (%v)", err)
+	}
+
+	return *solutionVec, nil
+}
+
+func (state *TableauAlgorithmState) CreateOptimalValuesMap() (map[uint64]float64, error) {
+	// Input Checking
+	err := state.Check()
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup
+	solutionVec, err := state.CalculateOptimalSolution()
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the map
+	solutionMap := map[uint64]float64{}
+	for ii, v := range state.Tableau.Variables {
+		solutionMap[v.ID] = solutionVec.AtVec(ii)
+	}
+
+	return solutionMap, nil
+}
+
 func (state *TableauAlgorithmState) ToSolution(currentStatus problem.OptimizationStatus) problem.Solution {
 	// Construct Solution Map
 

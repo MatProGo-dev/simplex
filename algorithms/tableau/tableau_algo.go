@@ -70,6 +70,16 @@ func (algo *TableauAlgorithm) Solve(prob problem.OptimizationProblem) (problem.S
 						err,
 					)
 			}
+			sol.Values, err = stateII.CreateOptimalValuesMap()
+			if err != nil {
+				return sol,
+					fmt.Errorf(
+						"There was an issue creating the optimal values map at termination: %v",
+						err,
+					)
+			}
+
+			// Exit the loop
 			break
 		}
 
