@@ -34,7 +34,7 @@ jobs:
           go tool cover -func coverage.out -o coverage_analysis.out  
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.out
