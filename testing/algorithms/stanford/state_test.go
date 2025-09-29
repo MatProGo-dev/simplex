@@ -6,14 +6,14 @@ import (
 
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	stanford_algorithm1 "github.com/MatProGo-dev/simplex/algorithms/stanford"
-	"github.com/MatProGo-dev/simplex/simplexSolver"
 	"github.com/MatProGo-dev/simplex/utils"
+	"github.com/MatProGo-dev/simplex/utils/examples"
 	"gonum.org/v1/gonum/mat"
 )
 
 func TestStanfordAlgorithmState_NonBasicVariables1(t *testing.T) {
 	// Setup
-	exampleProblem1 := simplexSolver.GetTestProblem1()
+	exampleProblem1 := examples.GetTestProblem1()
 
 	// Create the problem in standard form
 	problemInStandardForm, slackVariables, err := exampleProblem1.ToLPStandardForm1()
@@ -77,7 +77,7 @@ Description:
 */
 func TestStanfordAlgorithmState_BasicVariables1(t *testing.T) {
 	// Setup
-	exampleProblem1 := simplexSolver.GetTestProblem1()
+	exampleProblem1 := examples.GetTestProblem1()
 
 	// Create the problem in standard form
 	problemInStandardForm, slackVariables, err := exampleProblem1.ToLPStandardForm1()
@@ -144,7 +144,7 @@ Description:
 */
 func TestStanfordAlgorithmState_ReducedCostVector1(t *testing.T) {
 	// Setup
-	exampleProblem1 := simplexSolver.GetTestProblem2()
+	exampleProblem1 := examples.GetTestProblem2()
 
 	// Create the problem in standard form
 	problemInStandardForm, slackVariables, err := exampleProblem1.ToLPStandardForm1()

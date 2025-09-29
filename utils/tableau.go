@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	getKMatrix "github.com/MatProGo-dev/SymbolicMath.go/get/KMatrix"
@@ -11,10 +12,23 @@ import (
 )
 
 // The Tableau Representation of a linear program in standard form
+// Specifically, the tableau represents the problem:
+//
+//	minimize 		c^T * x + d
+//	subject to 		A * x = b
+//					x >= 0
+//
+// It represents the problem by storing the following information:
+// - The list of all variables in the problem (including slack variables)
+// - The indicies of the basic variables in the list of all variables
+// - A Matrix representing the tableau as follows
+//
+//	| c^T | d |
+//	|  A  | b |
 type Tableau struct {
 	Variables             []symbolic.Variable
 	BasicVariableIndicies []int      // The basic variables in order of their connection to the constraint rows
-	AsCompressedMatrix    *mat.Dense // The compressed matrix contains all
+	AsCompressedMatrix    *mat.Dense // The compressed matrix contains all of the information
 }
 
 /*
@@ -158,7 +172,11 @@ func (tableau *Tableau) C() *mat.VecDense {
 	topRow := compressedMatrixCopy.RowView(0)
 	topRowAsVecDense, _ := topRow.(*mat.VecDense)
 
-	return mat.NewVecDense(nTableauCols-1, topRowAsVecDense.RawVector().Data)
+	// Return the C vector (excluding the last entry which is the constant term)
+	out := mat.NewVecDense(nTableauCols-1, nil)
+	out.CopyVec(topRowAsVecDense.SliceVec(0, nTableauCols-1))
+
+	return out
 }
 
 /*
@@ -254,6 +272,18 @@ func (tableau *Tableau) CNonBasic() (*mat.VecDense, error) {
 	return &cNonBasicAsVecDense, nil
 }
 
+func (tableau *Tableau) D() float64 {
+	// Check that tableau is valid
+	err := tableau.Check()
+	if err != nil {
+		panic(err)
+	}
+
+	// Return the value of d
+	_, nTableauCols := tableau.AsCompressedMatrix.Dims()
+	return tableau.AsCompressedMatrix.At(0, nTableauCols-1)
+}
+
 func (tableau *Tableau) NonBasicVariableIndicies() []int {
 	// Input Processing
 	err := tableau.Check()
@@ -288,6 +318,11 @@ func (tableau *Tableau) NonBasicVariables() []symbolic.Variable {
 		out = append(out, tableau.Variables[nbIndex])
 	}
 	return out
+}
+
+func (tableau *Tableau) NumberOfConstraints() int {
+	nRows, _ := tableau.AsCompressedMatrix.Dims()
+	return nRows - 1
 }
 
 func (tableau *Tableau) BasicVariables() []symbolic.Variable {
@@ -330,7 +365,7 @@ func GetInitialTableauFrom(problemIn *problem.OptimizationProblem) (Tableau, err
 
 	// Transform the problem into the standard form where all constraints
 	// are equality constraints
-	problemInStandardForm, slackVariables, err := problemIn.ToLPStandardForm1()
+	problemInStandardForm, slackVariables, err := problemIn.ToLPStandardForm2()
 	if err != nil {
 		return Tableau{}, err
 	}
@@ -343,18 +378,24 @@ func GetInitialTableauFrom(problemIn *problem.OptimizationProblem) (Tableau, err
 	}
 
 	// Create the matrix
+	// [ A | b ]
 	A, b, err := problemInStandardForm.LinearEqualityConstraintMatrices()
 	if err != nil {
 		return Tableau{}, err
 	}
 	Ab := symbolic.HStack(A, b)
 
+	// Create the cost vector
+	// [ -c^T | -d ]
 	objectiveExpression := problemInStandardForm.Objective.Expression.(symbolic.ScalarExpression)
 	c := objectiveExpression.LinearCoeff(problemInStandardForm.Variables)
+	d := objectiveExpression.Constant()
+
+	c.ScaleVec(-1.0, &c) // We negate c because we are converting from a maximization to a minimization problem
 
 	var cExtended *mat.VecDense = mat.NewVecDense(c.Len()+1, nil)
 	cExtended.CopyVec(&c)
-	cExtended.SetVec(c.Len(), 0.0)
+	cExtended.SetVec(c.Len(), -d)
 
 	tableauMatCondensed := symbolic.VStack(
 		symbolic.VecDenseToKVector(*cExtended).Transpose(),
@@ -386,6 +427,28 @@ func (tableau *Tableau) AllObjectiveRowEntriesAreLessThanOrEqualToZero() bool {
 	// Check if all coefficients are less than or equal to zero
 	for ii := 0; ii < c.Len(); ii++ {
 		if c.AtVec(ii) > 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
+/*
+CanNotBeImproved
+Description:
+
+	Returns true if the tableau's objective row indicates that
+	the objective function can not be improved by changing
+	any of the non-basic variables.
+*/
+func (tableau *Tableau) CanNotBeImproved() bool {
+	// Get the coefficients of the non-basic variables
+	c := tableau.C()
+
+	// Check if all coefficients are less than or equal to zero
+	for ii := 0; ii < c.Len(); ii++ {
+		if c.AtVec(ii) < 0 {
 			return false
 		}
 	}
@@ -499,44 +562,92 @@ func (tableau *Tableau) NumberOfNonBasicVariables() int {
 }
 
 /*
-SelectPivotColumn
+Pivot
 Description:
 
-	Selects the pivot column based on the tableau.
-	This is the column from the non-basic variables that leads to the
-	largest increase in the objective function value.
-	It returns the index of the pivot column in the tableau.
+	Performs a pivot operation on the tableau.
+	This operation produces a new tableau where the entering variable
+	becomes a basic variable and the exiting variable becomes a non-basic variable.
 */
-func (tableau *Tableau) SelectPivotColumn() (int, error) {
+func (tableau *Tableau) Pivot(enteringVarIdx int, exitingVarIdx int) (Tableau, error) {
 	// Input Processing
 	err := tableau.Check()
 	if err != nil {
-		return -1, fmt.Errorf("SelectPivotColumn: %v", err)
+		return Tableau{}, fmt.Errorf("Pivot: %v", err)
+	}
+
+	// Check that the entering variable is not already a basic variable
+	if foundIdx, _ := symbolic.FindInSlice(enteringVarIdx, tableau.BasicVariableIndicies); foundIdx != -1 {
+		return Tableau{}, fmt.Errorf("Pivot: the entering variable is already a basic variable")
+	}
+
+	// Check that the exiting variable is a basic variable
+	if foundIdx, _ := symbolic.FindInSlice(exitingVarIdx, tableau.BasicVariableIndicies); foundIdx == -1 {
+		return Tableau{}, fmt.Errorf("Pivot: the exiting variable is not a basic variable")
 	}
 
 	// Setup
-	nNonBasic := tableau.NumberOfNonBasicVariables()
-	if nNonBasic == 0 {
-		return -1, fmt.Errorf("SelectPivotColumn: there are no non-basic variables")
+	nRows, nCols := tableau.AsCompressedMatrix.Dims()
+	newTableauMat := mat.NewDense(nRows, nCols, nil)
+	newTableauMat.Copy(tableau.AsCompressedMatrix)
+
+	exitingConstraintIdx, err := symbolic.FindInSlice(exitingVarIdx, tableau.BasicVariableIndicies)
+	if err != nil {
+		return Tableau{}, fmt.Errorf("Pivot: could not find exiting variable in basic variable indicies (%v)", err)
 	}
 
-	// Get the coefficients of the non-basic variables
-	objectiveExpression := getKVector.From(tableau.C()).Transpose().Multiply(
-		symbolic.VariableVector(tableau.Variables),
-	)
-	objectiveSE, _ := objectiveExpression.(symbolic.ScalarExpression)
+	// Perform the pivot operation
+	// - "Normalize" the pivot element (i.e., the element at A[exitingVarIdx, enteringVarIdx])
+	normalizingFactor := 1.0 / tableau.AsCompressedMatrix.At(exitingConstraintIdx+1, enteringVarIdx)
+	newPivotRow := mat.NewVecDense(nCols, nil)
+	for jj := 0; jj < nCols; jj++ {
+		newPivotRow.SetVec(jj, tableau.AsCompressedMatrix.At(exitingConstraintIdx+1, jj)*normalizingFactor)
+	}
+	newTableauMat.SetRow(exitingConstraintIdx+1, newPivotRow.RawVector().Data)
 
-	c := objectiveSE.LinearCoeff(tableau.NonBasicVariables())
+	// - Zero out the other entries in the entering variable column
+	for ii := 0; ii < nRows; ii++ {
+		// Skip the pivot row (i.e., the row of the entering variable)
+		if ii == exitingConstraintIdx+1 {
+			continue
+		}
+		// Skip any row that is already zero
+		if math.Abs(newTableauMat.At(ii, enteringVarIdx)) < 1e-14 {
+			continue
+		}
 
-	// Find the index of the pivot column
-	pivotColIndex := -1
-	maxValue := 0.0
-	for ii := 0; ii < nNonBasic; ii++ {
-		if c.AtVec(ii) > maxValue {
-			maxValue = c.AtVec(ii)
-			pivotColIndex = ii
+		// Otherwise, determine the factor needed to zero out this entry
+		factorToZeroOut := -1.0 * newTableauMat.At(ii, enteringVarIdx)
+		rowToAdd := mat.NewVecDense(nCols, nil)
+		rowToAdd.ScaleVec(factorToZeroOut, newPivotRow)
+		rowToAdd.AddVec(rowToAdd, newTableauMat.RowView(ii))
+
+		// Update the row in the new tableau
+		newTableauMat.SetRow(ii, rowToAdd.RawVector().Data)
+	}
+
+	// Update the list of basic variable indicies
+	newBasicVariableIndicies := make([]int, len(tableau.BasicVariableIndicies))
+	copy(newBasicVariableIndicies, tableau.BasicVariableIndicies)
+	for ii, bvIdx := range tableau.BasicVariableIndicies {
+		if bvIdx == exitingVarIdx {
+			newBasicVariableIndicies[ii] = enteringVarIdx
+			break
 		}
 	}
 
-	return pivotColIndex, nil
+	// Create the new tableau
+	newTableau := Tableau{
+		Variables:             tableau.Variables,
+		BasicVariableIndicies: newBasicVariableIndicies,
+		AsCompressedMatrix:    newTableauMat,
+	}
+
+	// Check the new tableau for validity
+	err = newTableau.Check()
+	if err != nil {
+		return Tableau{}, fmt.Errorf("Pivot: the resulting tableau is invalid (%v)", err)
+	}
+
+	return newTableau, nil
 }

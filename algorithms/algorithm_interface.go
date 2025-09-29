@@ -6,5 +6,5 @@ import (
 
 type AlgorithmInterface interface {
 	// Solves the provided optimization problem.
-	Solve(initialState AlgorithmInternalState) (problem.Solution, error)
+	Solve(prob problem.OptimizationProblem) (problem.Solution, error)
 }
