@@ -3,10 +3,10 @@ package tableau_algorithm1
 import (
 	"fmt"
 
-	solution_status "github.com/MatProGo-dev/MatProInterface.go/solution/status"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	"github.com/MatProGo-dev/simplex/algorithms"
 	"github.com/MatProGo-dev/simplex/algorithms/tableau/selection"
+	tableau_termination "github.com/MatProGo-dev/simplex/algorithms/tableau/termination"
 	simplex_solution "github.com/MatProGo-dev/simplex/solution"
 	"github.com/MatProGo-dev/simplex/utils"
 	"gonum.org/v1/gonum/mat"
@@ -342,13 +342,37 @@ func (state *TableauAlgorithmState) CreateOptimalValuesMap() (map[uint64]float64
 	return solutionMap, nil
 }
 
-func (state *TableauAlgorithmState) ToSolution(currentStatus solution_status.SolutionStatus) simplex_solution.SimplexSolution {
-	// Construct Solution Map
+func (state *TableauAlgorithmState) ToSolution(condition tableau_termination.TerminationType) (simplex_solution.SimplexSolution, error) {
+	// Create container for solution
+	var sol simplex_solution.SimplexSolution
+	var err error
+
+	// Construct Solution Status
+	sol.Status = condition.ToOptimizationStatus()
+
+	// Construct Iteration Count
+	sol.Iterations = state.IterationCount
+
+	// Construct Objective Value
+	sol.Objective, err = state.CurrentObjectiveValue()
+	if err != nil {
+		return sol,
+			fmt.Errorf(
+				"There was an issue getting the objective value at termination: %v",
+				err,
+			)
+	}
+
+	// Construct Variable map
+	sol.VariableValues, err = state.CreateOptimalValuesMap()
+	if err != nil {
+		return sol,
+			fmt.Errorf(
+				"There was an issue creating the optimal values map at termination: %v",
+				err,
+			)
+	}
 
 	// Assemble Solution Output
-	return simplex_solution.SimplexSolution{
-		VariableValues: map[uint64]float64{},
-		Objective:      -1.0,
-		Status:         currentStatus,
-	}
+	return sol, nil
 }

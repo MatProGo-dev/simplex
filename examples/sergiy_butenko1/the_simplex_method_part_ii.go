@@ -26,6 +26,7 @@ func main() {
 	solutionMessage, _ := solution.Status.ToMessage()
 	println("Solution Status: ", solutionMessage)
 	println("Objective Value: ", solution.Objective)
+	println("Number of Iterations: ", solution.Iterations)
 	println("Variable Values: ")
 	for varName, varValue := range solution.VariableValues {
 		println("  ", varName, ": ", varValue)

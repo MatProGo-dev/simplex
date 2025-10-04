@@ -62,24 +62,15 @@ func (algo *TableauAlgorithm) Solve(prob problem.OptimizationProblem) (simplex_s
 		}
 
 		if condition != tableau_termination.DidNotTerminate {
-			sol.Status = condition.ToOptimizationStatus()
-			sol.Objective, err = stateII.CurrentObjectiveValue()
+			sol, err = stateII.ToSolution(condition)
 			if err != nil {
-				return sol,
+				return simplex_solution.SimplexSolution{},
 					fmt.Errorf(
-						"There was an issue getting the objective value at termination: %v",
+						"There was an issue converting the final state to a solution at iteration %v: %v",
+						iter,
 						err,
 					)
 			}
-			sol.VariableValues, err = stateII.CreateOptimalValuesMap()
-			if err != nil {
-				return sol,
-					fmt.Errorf(
-						"There was an issue creating the optimal values map at termination: %v",
-						err,
-					)
-			}
-
 			// Exit the loop
 			break
 		}

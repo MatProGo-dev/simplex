@@ -6,4 +6,5 @@ type SimplexSolution struct {
 	VariableValues map[uint64]float64
 	Objective      float64
 	Status         solution_status.SolutionStatus
+	Iterations     int
 }
