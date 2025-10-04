@@ -297,16 +297,14 @@ func (state *TableauAlgorithmState) CalculateOptimalSolution() (mat.VecDense, er
 	bAugmented := mat.NewVecDense(numConstraints+numNonBasic, nil)
 	bAugmented.CopyVec(b)
 
-	fmt.Println("A: ", mat.Formatted(AAugmented))
-
 	// Add the non-basic variable constraints
 	nonBasicVars := state.GetNonBasicVariables()
 	for ii, v := range nonBasicVars {
-		fmt.Println("Adding non-basic variable constraint for variable: ", v)
+		// fmt.Println("Adding non-basic variable constraint for variable: ", v)
 		// Find the index of the variable in the tableau
 		vIdxInTableau, _ := symbolic.FindInSlice(v, state.Tableau.Variables)
-		fmt.Println("vIdxInTableau: ", vIdxInTableau)
-		fmt.Println("Targeted row: ", numConstraints+ii)
+		// fmt.Println("vIdxInTableau: ", vIdxInTableau)
+		// fmt.Println("Targeted row: ", numConstraints+ii)
 		AAugmented.Set(numConstraints+ii, vIdxInTableau, 1.0)
 	}
 	// b is already zero in the new rows, so we don't need to set anything in bAugmented

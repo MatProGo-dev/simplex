@@ -446,6 +446,8 @@ func (tableau *Tableau) CanNotBeImproved() bool {
 	// Get the coefficients of the non-basic variables
 	c := tableau.C()
 
+	fmt.Println("c =", c)
+
 	// Check if all coefficients are less than or equal to zero
 	for ii := 0; ii < c.Len(); ii++ {
 		if c.AtVec(ii) < 0 {

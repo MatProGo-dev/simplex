@@ -4,6 +4,7 @@ import (
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	getKMatrix "github.com/MatProGo-dev/SymbolicMath.go/get/KMatrix"
 	getKVector "github.com/MatProGo-dev/SymbolicMath.go/get/KVector"
+	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	"github.com/MatProGo-dev/simplex/simplexSolver"
 	"gonum.org/v1/gonum/mat"
 )
@@ -89,5 +90,12 @@ func main() {
 	println("Variable Values: ")
 	for varName, varValue := range solution.VariableValues {
 		println("  ", varName, ": ", varValue)
+	}
+
+	// Construct Variable Values map in terms of map[symbolic.Variable] float64
+	varValues := make(map[symbolic.Variable]float64)
+	for varID, varValue := range solution.VariableValues {
+		// Extract variable form problem that has the same ID
+		varValues[symbolic.NewVariable(varName)] = varValue
 	}
 }
