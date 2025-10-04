@@ -1,7 +1,7 @@
 package tableau_termination
 
 import (
-	"github.com/MatProGo-dev/MatProInterface.go/problem"
+	solution_status "github.com/MatProGo-dev/MatProInterface.go/solution/status"
 )
 
 type TerminationType string
@@ -10,15 +10,15 @@ const DidNotTerminate TerminationType = "Did Not Terminate"
 const MaximumIterationsReached TerminationType = "Maximum Iterations Reached"
 const OptimalSolutionFound TerminationType = "Optimal Solution Found"
 
-func (tt TerminationType) ToOptimizationStatus() problem.OptimizationStatus {
+func (tt TerminationType) ToOptimizationStatus() solution_status.SolutionStatus {
 	switch tt {
 	case DidNotTerminate:
-		return problem.OptimizationStatus_INPROGRESS
+		return solution_status.INPROGRESS
 	case MaximumIterationsReached:
-		return problem.OptimizationStatus_ITERATION_LIMIT
+		return solution_status.ITERATION_LIMIT
 	case OptimalSolutionFound:
-		return problem.OptimizationStatus_OPTIMAL
+		return solution_status.OPTIMAL
 	default:
-		return problem.OptimizationStatus_INPROGRESS
+		return solution_status.INPROGRESS
 	}
 }

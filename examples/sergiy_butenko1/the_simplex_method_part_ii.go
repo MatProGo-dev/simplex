@@ -27,7 +27,7 @@ func main() {
 	println("Solution Status: ", solutionMessage)
 	println("Objective Value: ", solution.Objective)
 	println("Variable Values: ")
-	for varName, varValue := range solution.Values {
+	for varName, varValue := range solution.VariableValues {
 		println("  ", varName, ": ", varValue)
 	}
 }

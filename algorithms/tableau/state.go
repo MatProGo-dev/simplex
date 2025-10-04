@@ -3,10 +3,11 @@ package tableau_algorithm1
 import (
 	"fmt"
 
-	"github.com/MatProGo-dev/MatProInterface.go/problem"
+	solution_status "github.com/MatProGo-dev/MatProInterface.go/solution/status"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	"github.com/MatProGo-dev/simplex/algorithms"
 	"github.com/MatProGo-dev/simplex/algorithms/tableau/selection"
+	simplex_solution "github.com/MatProGo-dev/simplex/solution"
 	"github.com/MatProGo-dev/simplex/utils"
 	"gonum.org/v1/gonum/mat"
 )
@@ -341,13 +342,13 @@ func (state *TableauAlgorithmState) CreateOptimalValuesMap() (map[uint64]float64
 	return solutionMap, nil
 }
 
-func (state *TableauAlgorithmState) ToSolution(currentStatus problem.OptimizationStatus) problem.Solution {
+func (state *TableauAlgorithmState) ToSolution(currentStatus solution_status.SolutionStatus) simplex_solution.SimplexSolution {
 	// Construct Solution Map
 
 	// Assemble Solution Output
-	return problem.Solution{
-		Values:    map[uint64]float64{},
-		Objective: -1.0,
-		Status:    currentStatus,
+	return simplex_solution.SimplexSolution{
+		VariableValues: map[uint64]float64{},
+		Objective:      -1.0,
+		Status:         currentStatus,
 	}
 }

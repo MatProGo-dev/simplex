@@ -6,6 +6,7 @@ import (
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	"github.com/MatProGo-dev/simplex/algorithms"
 	tableau_algorithm1 "github.com/MatProGo-dev/simplex/algorithms/tableau"
+	simplex_solution "github.com/MatProGo-dev/simplex/solution"
 )
 
 type SimplexSolver struct {
@@ -39,13 +40,13 @@ func (solver *SimplexSolver) CreateAlgorithm(algoType algorithms.AlgorithmType) 
 	}
 }
 
-func (solver *SimplexSolver) Solve(prob problem.OptimizationProblem) (problem.Solution, error) {
+func (solver *SimplexSolver) Solve(prob problem.OptimizationProblem) (simplex_solution.SimplexSolution, error) {
 	// Setup
 
 	// Choose Algorithm
 	algo, err := solver.CreateAlgorithm(solver.Algorithm)
 	if err != nil {
-		return problem.Solution{}, fmt.Errorf(
+		return simplex_solution.SimplexSolution{}, fmt.Errorf(
 			"The Solve() function was given an unknown solver type: %v",
 			solver.Algorithm,
 		)

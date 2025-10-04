@@ -4,7 +4,9 @@ import (
 	"fmt"
 
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
+	solution_status "github.com/MatProGo-dev/MatProInterface.go/solution/status"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
+	simplex_solution "github.com/MatProGo-dev/simplex/solution"
 	"github.com/MatProGo-dev/simplex/utils"
 	"gonum.org/v1/gonum/mat"
 )
@@ -178,11 +180,11 @@ Description:
 	- The values of the basic variables
 	- The values of the non-basic variables
 */
-func (algo *StanfordAlgorithm) ComputeSolutionFromState(state StanfordAlgorithmState) (problem.Solution, error) {
+func (algo *StanfordAlgorithm) ComputeSolutionFromState(state StanfordAlgorithmState) (simplex_solution.SimplexSolution, error) {
 	// Setup
 	fmt.Printf("Computing solution from state...\n")
-	solution := problem.Solution{
-		Status: problem.OptimizationStatus_OPTIMAL,
+	solution := simplex_solution.SimplexSolution{
+		Status: solution_status.OPTIMAL,
 	}
 
 	// Compute the feasible solution of the basic variables
@@ -200,18 +202,18 @@ func (algo *StanfordAlgorithm) ComputeSolutionFromState(state StanfordAlgorithmS
 
 	// Set the values of the basic variables
 	for ii, bv := range state.BasicVariables {
-		solution.Values[bv.ID] = xBasic.AtVec(ii)
+		solution.VariableValues[bv.ID] = xBasic.AtVec(ii)
 	}
 
 	// Set the values of the non-basic variables
 	for jj, nv := range state.GetNonBasicVariables() {
-		solution.Values[nv.ID] = state.NonBasicValues.AtVec(jj)
+		solution.VariableValues[nv.ID] = state.NonBasicValues.AtVec(jj)
 	}
 
 	return solution, nil
 }
 
-func (algo *StanfordAlgorithm) Solve(initialState StanfordAlgorithmState) (problem.Solution, error) {
+func (algo *StanfordAlgorithm) Solve(initialState StanfordAlgorithmState) (simplex_solution.SimplexSolution, error) {
 	// Setup
 	var stateII StanfordAlgorithmState = initialState
 
@@ -221,7 +223,7 @@ func (algo *StanfordAlgorithm) Solve(initialState StanfordAlgorithmState) (probl
 		// Test for Termination
 		r, err := stateII.GetReducedCostVector()
 		if err != nil {
-			return problem.Solution{}, fmt.Errorf(
+			return simplex_solution.SimplexSolution{}, fmt.Errorf(
 				"StanfordAlgorithm: Failed to get reduced cost vector (%v) at iteration #%v",
 				err,
 				iter,
@@ -248,7 +250,7 @@ func (algo *StanfordAlgorithm) Solve(initialState StanfordAlgorithmState) (probl
 		var ABasicInv mat.Dense
 		ABasic, err := stateII.ABasic()
 		if err != nil {
-			return problem.Solution{}, fmt.Errorf("StanfordAlgorithm: Failed to get ABasic matrix (%v)", err)
+			return simplex_solution.SimplexSolution{}, fmt.Errorf("StanfordAlgorithm: Failed to get ABasic matrix (%v)", err)
 		}
 		ABasicInv.Inverse(ABasic)
 		var ABasicAe mat.VecDense
@@ -263,7 +265,7 @@ func (algo *StanfordAlgorithm) Solve(initialState StanfordAlgorithmState) (probl
 			}
 		}
 		if objectiveIsUnboundedBelow {
-			return problem.Solution{}, fmt.Errorf(
+			return simplex_solution.SimplexSolution{}, fmt.Errorf(
 				"StanfordAlgorithm: Objective function is unbounded below, no solution exists at iteration %d",
 				iter,
 			)
@@ -274,13 +276,13 @@ func (algo *StanfordAlgorithm) Solve(initialState StanfordAlgorithmState) (probl
 		// Compute the feasible Solution of the Basic variables
 		xBasicII, err := algo.ComputeFeasibleBasicSolution(stateII)
 		if err != nil {
-			return problem.Solution{}, err
+			return simplex_solution.SimplexSolution{}, err
 		}
 
 		// Compute the value of the objective function
 		objII, err := algo.ComputeObjectiveFunctionValueWithFeasibleBasicSolution(stateII, xBasicII)
 		if err != nil {
-			return problem.Solution{}, err
+			return simplex_solution.SimplexSolution{}, err
 		}
 		fmt.Printf("Iteration %d: Basic Solution: %v, Objective Value: %f\n", iter, xBasicII, objII)
 
@@ -290,13 +292,13 @@ func (algo *StanfordAlgorithm) Solve(initialState StanfordAlgorithmState) (probl
 		// Check if the solution is optimal
 
 		if iter == algo.IterationLimit {
-			return problem.Solution{
+			return simplex_solution.SimplexSolution{
 				Objective: objII,
-				Status:    problem.OptimizationStatus_ITERATION_LIMIT,
+				Status:    solution_status.ITERATION_LIMIT,
 			}, nil
 		}
 
 	}
 
-	return problem.Solution{}, nil
+	return simplex_solution.SimplexSolution{}, nil
 }
