@@ -289,7 +289,7 @@ func (state *TableauAlgorithmState) CalculateOptimalSolution() (mat.VecDense, er
 	// - The non-basic variables set to zero
 	A, b := state.A(), state.B()
 	numConstraints, _ := A.Dims()
-	numNonBasic := state.Tableau.NumberOfNonBasicVariables() //state.NumberOfVariables() - state.NumberOfConstraints()
+	numNonBasic := state.Tableau.NumberOfNonBasicVariables()
 
 	// Augment the A and b matrices with the non-basic variable constraints
 	AAugmented := mat.NewDense(numConstraints+numNonBasic, numVars, nil)
