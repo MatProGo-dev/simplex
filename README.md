@@ -11,22 +11,15 @@ go get github.com/MatProGo-dev/simplex
 # Usage
 
 ```
-/*
-Description:
+package main
 
-	This function builds an optimization problem where we attempt to find
-	the optimal solution to a linear programming problem that is in a feasible
-	region that is a box.
+import (
+	"github.com/MatProGo-dev/MatProInterface.go/problem"
+	getKVector "github.com/MatProGo-dev/SymbolicMath.go/get/KVector"
+	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
+	"github.com/MatProGo-dev/simplex/simplexSolver"
+)
 
-	The problem will be:
-
-	Minimize:  x1 + 2*x2
-	Subject to:
-		0 <= x1 <= 1
-		0 <= x2 <= 1
-
-	The optimal solution is x1 = 0, x2 = 0 with an objective value of 0.
-*/
 func BuildOptimizationProblem() problem.OptimizationProblem {
 	// setup
 	varCount := 2
