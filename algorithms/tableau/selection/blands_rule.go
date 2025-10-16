@@ -99,6 +99,8 @@ func (br BlandsRule) SelectEnteringAndExitingVariables(tableau utils.Tableau) (i
 		return -1, -1, nil // Optimal solution found, no entering variable
 	}
 
+	fmt.Println("Entering variable index:", enteringVarIdx)
+
 	// Select the exiting variable
 	exitingVarIdx := br.SelectExitingVariable(tableau, enteringVarIdx)
 	if exitingVarIdx == -1 {
