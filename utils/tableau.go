@@ -348,27 +348,29 @@ Description:
 
 	This function computes the initial tableau of an
 */
-func GetInitialTableauFrom(problemIn *problem.OptimizationProblem) (Tableau, error) {
+func GetInitialTableauFrom(problemIn *problem.OptimizationProblem) (Tableau, map[symbolic.Variable]symbolic.Expression, error) {
 	// Input Processing
 	if problemIn == nil {
-		return Tableau{}, fmt.Errorf(
+		return Tableau{}, nil, fmt.Errorf(
 			"Check: tableau.Problem cannot be nil",
 		)
 	}
 
 	// Ensure that the problem is a linear program
 	if !problemIn.IsLinear() {
-		return Tableau{}, fmt.Errorf(
+		return Tableau{}, nil, fmt.Errorf(
 			"Check: the problem is not a linear program",
 		)
 	}
 
 	// Transform the problem into the standard form where all constraints
 	// are equality constraints
-	problemInStandardForm, slackVariables, err := problemIn.ToLPStandardForm2()
+	problemInStandardForm, slackVariables, mapFromOriginalVariablesToNewExpressions, err := problemIn.ToLPStandardForm2()
 	if err != nil {
-		return Tableau{}, err
+		return Tableau{}, nil, err
 	}
+
+	fmt.Println("Problem in standard form:", problemInStandardForm)
 
 	// Transform SlackVariables object into indicies
 	var slackVariableIndicies []int
@@ -381,7 +383,7 @@ func GetInitialTableauFrom(problemIn *problem.OptimizationProblem) (Tableau, err
 	// [ A | b ]
 	A, b, err := problemInStandardForm.LinearEqualityConstraintMatrices()
 	if err != nil {
-		return Tableau{}, err
+		return Tableau{}, mapFromOriginalVariablesToNewExpressions, err
 	}
 	Ab := symbolic.HStack(A, b)
 
@@ -408,7 +410,7 @@ func GetInitialTableauFrom(problemIn *problem.OptimizationProblem) (Tableau, err
 		AsCompressedMatrix:    &tableauMatCondensedAsDense,
 		Variables:             problemInStandardForm.Variables,
 		BasicVariableIndicies: slackVariableIndicies,
-	}, nil
+	}, mapFromOriginalVariablesToNewExpressions, nil
 }
 
 /*

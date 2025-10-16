@@ -3,6 +3,7 @@ package selection
 import (
 	"fmt"
 
+	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	"github.com/MatProGo-dev/simplex/utils"
 )
 
@@ -55,7 +56,7 @@ Description:
 func (br BlandsRule) SelectExitingVariable(tableau utils.Tableau, enteringVarIdx int) int {
 	// Setup
 	minIndex := -1
-	minRatio := -1.0
+	minRatio := float64(symbolic.Infinity)
 
 	// Get the relevant matrices
 	A := tableau.A()
@@ -74,7 +75,7 @@ func (br BlandsRule) SelectExitingVariable(tableau utils.Tableau, enteringVarIdx
 	// Iterate through the ratios and find the smallest one
 	for i, ratio := range ratios {
 		if ratio >= 0 { // Only consider valid ratios
-			if minRatio < 0 || ratio < minRatio || (ratio == minRatio && tableau.BasicVariableIndicies[i] < tableau.BasicVariableIndicies[minIndex]) {
+			if ratio < minRatio || (ratio == minRatio && tableau.BasicVariableIndicies[i] < tableau.BasicVariableIndicies[minIndex]) {
 				minRatio = ratio
 				minIndex = i
 			}
