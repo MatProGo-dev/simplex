@@ -34,7 +34,7 @@ func TestTableau_CalculateOptimalSolution1(t *testing.T) {
 	// Use the optimization solver to solve the problem
 
 	// Create initial Tableau state from the problem
-	initialTableau, err := utils.GetInitialTableauFrom(testProblem)
+	initialTableau, _, err := utils.GetInitialTableauFrom(testProblem)
 	if err != nil {
 		t.Errorf("there was an issue creating the initial tableau: %v", err)
 	}
@@ -66,5 +66,4 @@ func TestTableau_CalculateOptimalSolution1(t *testing.T) {
 			t.Errorf("Expected solution value %v at index %d, but got %v", val, ii, solVec.AtVec(ii))
 		}
 	}
-
 }

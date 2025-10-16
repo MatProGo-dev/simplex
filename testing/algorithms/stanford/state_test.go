@@ -16,7 +16,7 @@ func TestStanfordAlgorithmState_NonBasicVariables1(t *testing.T) {
 	exampleProblem1 := examples.GetTestProblem1()
 
 	// Create the problem in standard form
-	problemInStandardForm, slackVariables, err := exampleProblem1.ToLPStandardForm1()
+	problemInStandardForm, slackVariables, _, err := exampleProblem1.ToLPStandardForm1()
 	if err != nil {
 		t.Errorf("Expected no error, but got: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestStanfordAlgorithmState_BasicVariables1(t *testing.T) {
 	exampleProblem1 := examples.GetTestProblem1()
 
 	// Create the problem in standard form
-	problemInStandardForm, slackVariables, err := exampleProblem1.ToLPStandardForm1()
+	problemInStandardForm, slackVariables, _, err := exampleProblem1.ToLPStandardForm1()
 	if err != nil {
 		t.Errorf("Expected no error, but got: %v", err)
 	}
@@ -147,7 +147,7 @@ func TestStanfordAlgorithmState_ReducedCostVector1(t *testing.T) {
 	exampleProblem1 := examples.GetTestProblem2()
 
 	// Create the problem in standard form
-	problemInStandardForm, slackVariables, err := exampleProblem1.ToLPStandardForm1()
+	problemInStandardForm, slackVariables, _, err := exampleProblem1.ToLPStandardForm1()
 	if err != nil {
 		t.Errorf("Expected no error, but got: %v", err)
 	}

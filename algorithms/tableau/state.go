@@ -3,6 +3,8 @@ package tableau_algorithm1
 import (
 	"fmt"
 
+	"github.com/MatProGo-dev/MatProInterface.go/problem"
+	"github.com/MatProGo-dev/MatProInterface.go/solution"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	"github.com/MatProGo-dev/simplex/algorithms"
 	"github.com/MatProGo-dev/simplex/algorithms/tableau/selection"
@@ -89,17 +91,6 @@ func (state *TableauAlgorithmState) CheckTerminationCondition() (bool, error) {
 		}
 	}
 	return true, nil
-}
-
-func (state *TableauAlgorithmState) CurrentObjectiveValue() (float64, error) {
-	// Input Checking
-	err := state.Check()
-	if err != nil {
-		return 0.0, err
-	}
-
-	// Setup
-	return state.Tableau.D(), nil
 }
 
 /*
@@ -251,6 +242,8 @@ func (state *TableauAlgorithmState) CalculateNextState() (TableauAlgorithmState,
 		return TableauAlgorithmState{}, err
 	}
 
+	// fmt.Println("Calculating next state from tableau:", mat.Formatted(state.Tableau.AsCompressedMatrix))
+
 	// Select the pivot column and row (i.e., the entering and exiting variables in the tableau)
 	// Here, we use Bland's Rule to select the entering variable
 	// TODO(Kwesi): Make other rules available
@@ -259,6 +252,9 @@ func (state *TableauAlgorithmState) CalculateNextState() (TableauAlgorithmState,
 	if err != nil {
 		return TableauAlgorithmState{}, fmt.Errorf("TableauAlgorithmState: Failed to select entering and exiting variables (%v)", err)
 	}
+
+	// fmt.Println("Entering variable index: ", enteringVarIdx, " (", state.Tableau.Variables[enteringVarIdx], ")")
+	// fmt.Println("Exiting variable index: ", exitingVarIdx, " (", state.Tableau.Variables[exitingVarIdx], ")")
 
 	// Create the new tableau
 	newTab, err := state.Tableau.Pivot(enteringVarIdx, exitingVarIdx)
@@ -318,7 +314,7 @@ func (state *TableauAlgorithmState) CalculateOptimalSolution() (mat.VecDense, er
 	return *solutionVec, nil
 }
 
-func (state *TableauAlgorithmState) CreateOptimalValuesMap() (map[uint64]float64, error) {
+func (state *TableauAlgorithmState) CreateOptimalValuesMap(originalVariablesAsStandardFormExpressions map[symbolic.Variable]symbolic.Expression) (map[uint64]float64, error) {
 	// Input Checking
 	err := state.Check()
 	if err != nil {
@@ -331,16 +327,33 @@ func (state *TableauAlgorithmState) CreateOptimalValuesMap() (map[uint64]float64
 		return nil, err
 	}
 
-	// Create the map
-	solutionMap := map[uint64]float64{}
+	// Create the map between the STANDARD FORM variables and the optimal values
+	standardFormOptimalValues := map[symbolic.Variable]symbolic.Expression{}
 	for ii, v := range state.Tableau.Variables {
-		solutionMap[v.ID] = solutionVec.AtVec(ii)
+		standardFormOptimalValues[v] = symbolic.K(solutionVec.AtVec(ii))
 	}
 
-	return solutionMap, nil
+	// Create the map between the ORIGINAL variables and the optimal values
+	optimalValueMap := map[uint64]float64{}
+	for origVar, expr := range originalVariablesAsStandardFormExpressions {
+		// Evaluate the expression (which is equal to the original variable) using the solution map
+		value := expr.SubstituteAccordingTo(standardFormOptimalValues)
+		valAsK, ok := value.(symbolic.K)
+		if !ok {
+			return nil, fmt.Errorf("TableauAlgorithmState: Failed to evaluate optimal value for original variable %v", origVar)
+		}
+		// Add the value to the output map
+		optimalValueMap[origVar.ID] = float64(valAsK)
+	}
+
+	return optimalValueMap, nil
 }
 
-func (state *TableauAlgorithmState) ToSolution(condition tableau_termination.TerminationType) (simplex_solution.SimplexSolution, error) {
+func (state *TableauAlgorithmState) ToSolution(
+	condition tableau_termination.TerminationType,
+	varMap map[symbolic.Variable]symbolic.Expression,
+	originalProblem *problem.OptimizationProblem,
+) (simplex_solution.SimplexSolution, error) {
 	// Create container for solution
 	var sol simplex_solution.SimplexSolution
 	var err error
@@ -351,22 +364,25 @@ func (state *TableauAlgorithmState) ToSolution(condition tableau_termination.Ter
 	// Construct Iteration Count
 	sol.Iterations = state.IterationCount
 
-	// Construct Objective Value
-	sol.Objective, err = state.CurrentObjectiveValue()
-	if err != nil {
-		return sol,
-			fmt.Errorf(
-				"There was an issue getting the objective value at termination: %v",
-				err,
-			)
-	}
+	// Attach original problem
+	sol.OriginalProblem = originalProblem
 
 	// Construct Variable map
-	sol.VariableValues, err = state.CreateOptimalValuesMap()
+	sol.VariableValues, err = state.CreateOptimalValuesMap(varMap)
 	if err != nil {
 		return sol,
 			fmt.Errorf(
 				"There was an issue creating the optimal values map at termination: %v",
+				err,
+			)
+	}
+
+	// Construct Objective Value
+	sol.Objective, err = solution.GetOptimalObjectiveValue(&sol)
+	if err != nil {
+		return sol,
+			fmt.Errorf(
+				"There was an issue getting the objective value at termination: %v",
 				err,
 			)
 	}

@@ -38,7 +38,7 @@ func (algo *TableauAlgorithm) Solve(prob problem.OptimizationProblem) (simplex_s
 	// Setup
 
 	// Create initial Tableau state from the problem
-	initialTableau, err := utils.GetInitialTableauFrom(&prob)
+	initialTableau, mapFromOriginalVariablesToStandardFormVariables, err := utils.GetInitialTableauFrom(&prob)
 	if err != nil {
 		return simplex_solution.SimplexSolution{}, fmt.Errorf("there was an issue creating the initial tableau: %v", err)
 	}
@@ -62,7 +62,7 @@ func (algo *TableauAlgorithm) Solve(prob problem.OptimizationProblem) (simplex_s
 		}
 
 		if condition != tableau_termination.DidNotTerminate {
-			sol, err = stateII.ToSolution(condition)
+			sol, err = stateII.ToSolution(condition, mapFromOriginalVariablesToStandardFormVariables, &prob)
 			if err != nil {
 				return simplex_solution.SimplexSolution{},
 					fmt.Errorf(
