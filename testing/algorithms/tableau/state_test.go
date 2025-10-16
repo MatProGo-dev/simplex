@@ -388,8 +388,7 @@ func TestTableauAlgorithmState_GetReducedCostVector1(t *testing.T) {
 
 	// The reduced cost vector should have length equal to number of variables
 	if reducedCost.Len() != state.NumberOfVariables() {
-		t.Errorf("Expected reduced cost vector length %d, but got %d", 
-			state.NumberOfVariables(), reducedCost.Len())
+		t.Errorf("Expected reduced cost vector length %d, but got %d", state.NumberOfVariables(), reducedCost.Len())
 	}
 }
 
@@ -426,8 +425,7 @@ func TestTableauAlgorithmState_GetShadowPrice1(t *testing.T) {
 
 	// The shadow price vector should have length equal to number of variables
 	if shadowPrice.Len() != state.NumberOfVariables() {
-		t.Errorf("Expected shadow price vector length %d, but got %d", 
-			state.NumberOfVariables(), shadowPrice.Len())
+		t.Errorf("Expected shadow price vector length %d, but got %d", state.NumberOfVariables(), shadowPrice.Len())
 	}
 }
 
