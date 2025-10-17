@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
-	"github.com/MatProGo-dev/MatProInterface.go/solution"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	"github.com/MatProGo-dev/simplex/algorithms"
 	"github.com/MatProGo-dev/simplex/algorithms/tableau/selection"
@@ -373,16 +372,6 @@ func (state *TableauAlgorithmState) ToSolution(
 		return sol,
 			fmt.Errorf(
 				"There was an issue creating the optimal values map at termination: %v",
-				err,
-			)
-	}
-
-	// Construct Objective Value
-	sol.Objective, err = solution.GetOptimalObjectiveValue(&sol)
-	if err != nil {
-		return sol,
-			fmt.Errorf(
-				"There was an issue getting the objective value at termination: %v",
 				err,
 			)
 	}

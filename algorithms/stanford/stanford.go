@@ -194,11 +194,10 @@ func (algo *StanfordAlgorithm) ComputeSolutionFromState(state StanfordAlgorithmS
 	}
 
 	// Compute the value of the objective function
-	objValue, err := algo.ComputeObjectiveFunctionValueWithFeasibleBasicSolution(state, xBasic)
+	_, err = algo.ComputeObjectiveFunctionValueWithFeasibleBasicSolution(state, xBasic)
 	if err != nil {
 		return solution, fmt.Errorf("StanfordAlgorithm: Failed to compute objective function value (%v)", err)
 	}
-	solution.Objective = objValue
 
 	// Set the values of the basic variables
 	for ii, bv := range state.BasicVariables {
@@ -293,8 +292,7 @@ func (algo *StanfordAlgorithm) Solve(initialState StanfordAlgorithmState) (simpl
 
 		if iter == algo.IterationLimit {
 			return simplex_solution.SimplexSolution{
-				Objective: objII,
-				Status:    solution_status.ITERATION_LIMIT,
+				Status: solution_status.ITERATION_LIMIT,
 			}, nil
 		}
 
