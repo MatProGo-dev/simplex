@@ -24,7 +24,7 @@ func TestGetInitialTableau1(t *testing.T) {
 	problemIn := examples.GetTestProblem3()
 
 	// Create the tableau using the initial state + problem in standard form
-	tableau, err := utils.GetInitialTableauFrom(problemIn)
+	tableau, _, err := utils.GetInitialTableauFrom(problemIn)
 	if err != nil {
 		t.Errorf("Expected no error, but got: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestComputeFeasibleSolution1(t *testing.T) {
 	problemIn := examples.GetTestProblem3()
 
 	// Create the tableau
-	tableau, err := utils.GetInitialTableauFrom(problemIn)
+	tableau, _, err := utils.GetInitialTableauFrom(problemIn)
 	if err != nil {
 		t.Errorf("Expected no error, but got: %v", err)
 	}

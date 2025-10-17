@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/MatProGo-dev/MatProInterface.go/solution"
 	"github.com/MatProGo-dev/simplex/simplexSolver"
 	"github.com/MatProGo-dev/simplex/utils/examples"
 )
@@ -17,17 +18,19 @@ func main() {
 	solver.IterationLimit = 100
 
 	// Solve the problem
-	solution, err := solver.Solve(*problem5)
+	sol, err := solver.Solve(*problem5)
 	if err != nil {
 		panic(err)
 	}
 
 	// Print the solution
-	solutionMessage, _ := solution.Status.ToMessage()
+	solutionMessage, _ := sol.Status.ToMessage()
 	println("Solution Status: ", solutionMessage)
-	println("Objective Value: ", solution.Objective)
+	optVal, _ := solution.GetOptimalObjectiveValue(&sol)
+	println("Objective Value: ", optVal)
+	println("Number of Iterations: ", sol.Iterations)
 	println("Variable Values: ")
-	for varName, varValue := range solution.Values {
+	for varName, varValue := range sol.VariableValues {
 		println("  ", varName, ": ", varValue)
 	}
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	tableau_termination "github.com/MatProGo-dev/simplex/algorithms/tableau/termination"
+	simplex_solution "github.com/MatProGo-dev/simplex/solution"
 	"github.com/MatProGo-dev/simplex/utils"
 	"gonum.org/v1/gonum/mat"
 )
@@ -33,13 +34,13 @@ func (algo *TableauAlgorithm) CheckTerminationConditions(state TableauAlgorithmS
 	return tableau_termination.DidNotTerminate, nil
 }
 
-func (algo *TableauAlgorithm) Solve(prob problem.OptimizationProblem) (problem.Solution, error) {
+func (algo *TableauAlgorithm) Solve(prob problem.OptimizationProblem) (simplex_solution.SimplexSolution, error) {
 	// Setup
 
 	// Create initial Tableau state from the problem
-	initialTableau, err := utils.GetInitialTableauFrom(&prob)
+	initialTableau, mapFromOriginalVariablesToStandardFormVariables, err := utils.GetInitialTableauFrom(&prob)
 	if err != nil {
-		return problem.Solution{}, fmt.Errorf("there was an issue creating the initial tableau: %v", err)
+		return simplex_solution.SimplexSolution{}, fmt.Errorf("there was an issue creating the initial tableau: %v", err)
 	}
 	stateII := TableauAlgorithmState{
 		Tableau:        &initialTableau,
@@ -47,12 +48,12 @@ func (algo *TableauAlgorithm) Solve(prob problem.OptimizationProblem) (problem.S
 	}
 
 	// Loop
-	sol := problem.Solution{}
+	sol := simplex_solution.SimplexSolution{}
 	for iter := 0; iter < algo.IterationLimit; iter++ {
 		// Test for Termination
 		condition, err := algo.CheckTerminationConditions(stateII)
 		if err != nil {
-			return problem.Solution{},
+			return simplex_solution.SimplexSolution{},
 				fmt.Errorf(
 					"There was an issue checking the termination condition at iteration %v: %v",
 					iter,
@@ -61,24 +62,15 @@ func (algo *TableauAlgorithm) Solve(prob problem.OptimizationProblem) (problem.S
 		}
 
 		if condition != tableau_termination.DidNotTerminate {
-			sol.Status = condition.ToOptimizationStatus()
-			sol.Objective, err = stateII.CurrentObjectiveValue()
+			sol, err = stateII.ToSolution(condition, mapFromOriginalVariablesToStandardFormVariables, &prob)
 			if err != nil {
-				return sol,
+				return simplex_solution.SimplexSolution{},
 					fmt.Errorf(
-						"There was an issue getting the objective value at termination: %v",
+						"There was an issue converting the final state to a solution at iteration %v: %v",
+						iter,
 						err,
 					)
 			}
-			sol.Values, err = stateII.CreateOptimalValuesMap()
-			if err != nil {
-				return sol,
-					fmt.Errorf(
-						"There was an issue creating the optimal values map at termination: %v",
-						err,
-					)
-			}
-
 			// Exit the loop
 			break
 		}
@@ -89,7 +81,7 @@ func (algo *TableauAlgorithm) Solve(prob problem.OptimizationProblem) (problem.S
 		// Update the state
 		stateII, err = stateII.CalculateNextState()
 		if err != nil {
-			return problem.Solution{},
+			return simplex_solution.SimplexSolution{},
 				fmt.Errorf(
 					"There was an issue updating the state at iteration %v: %v",
 					iter,

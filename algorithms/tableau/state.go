@@ -7,6 +7,8 @@ import (
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	"github.com/MatProGo-dev/simplex/algorithms"
 	"github.com/MatProGo-dev/simplex/algorithms/tableau/selection"
+	tableau_termination "github.com/MatProGo-dev/simplex/algorithms/tableau/termination"
+	simplex_solution "github.com/MatProGo-dev/simplex/solution"
 	"github.com/MatProGo-dev/simplex/utils"
 	"gonum.org/v1/gonum/mat"
 )
@@ -88,17 +90,6 @@ func (state *TableauAlgorithmState) CheckTerminationCondition() (bool, error) {
 		}
 	}
 	return true, nil
-}
-
-func (state *TableauAlgorithmState) CurrentObjectiveValue() (float64, error) {
-	// Input Checking
-	err := state.Check()
-	if err != nil {
-		return 0.0, err
-	}
-
-	// Setup
-	return state.Tableau.D(), nil
 }
 
 /*
@@ -250,14 +241,19 @@ func (state *TableauAlgorithmState) CalculateNextState() (TableauAlgorithmState,
 		return TableauAlgorithmState{}, err
 	}
 
+	// fmt.Println("Calculating next state from tableau:", mat.Formatted(state.Tableau.AsCompressedMatrix))
+
 	// Select the pivot column and row (i.e., the entering and exiting variables in the tableau)
 	// Here, we use Bland's Rule to select the entering variable
 	// TODO(Kwesi): Make other rules available
 	selectionRule := selection.BlandsRule{}
 	enteringVarIdx, exitingVarIdx, err := selectionRule.SelectEnteringAndExitingVariables(*state.Tableau)
 	if err != nil {
-		return TableauAlgorithmState{}, fmt.Errorf("TableauAlgorithmState: Failed to select entering and exiting variables (%v)", err)
+		return TableauAlgorithmState{}, VariableSelectionError{EnteringVarIndex: enteringVarIdx, ExitingVarIndex: exitingVarIdx}
 	}
+
+	// fmt.Println("Entering variable index: ", enteringVarIdx, " (", state.Tableau.Variables[enteringVarIdx], ")")
+	// fmt.Println("Exiting variable index: ", exitingVarIdx, " (", state.Tableau.Variables[exitingVarIdx], ")")
 
 	// Create the new tableau
 	newTab, err := state.Tableau.Pivot(enteringVarIdx, exitingVarIdx)
@@ -288,7 +284,7 @@ func (state *TableauAlgorithmState) CalculateOptimalSolution() (mat.VecDense, er
 	// - The non-basic variables set to zero
 	A, b := state.A(), state.B()
 	numConstraints, _ := A.Dims()
-	numNonBasic := state.NumberOfVariables() - state.NumberOfConstraints()
+	numNonBasic := state.Tableau.NumberOfNonBasicVariables()
 
 	// Augment the A and b matrices with the non-basic variable constraints
 	AAugmented := mat.NewDense(numConstraints+numNonBasic, numVars, nil)
@@ -296,16 +292,14 @@ func (state *TableauAlgorithmState) CalculateOptimalSolution() (mat.VecDense, er
 	bAugmented := mat.NewVecDense(numConstraints+numNonBasic, nil)
 	bAugmented.CopyVec(b)
 
-	fmt.Println("A: ", mat.Formatted(AAugmented))
-
 	// Add the non-basic variable constraints
 	nonBasicVars := state.GetNonBasicVariables()
 	for ii, v := range nonBasicVars {
-		fmt.Println("Adding non-basic variable constraint for variable: ", v)
+		// fmt.Println("Adding non-basic variable constraint for variable: ", v)
 		// Find the index of the variable in the tableau
 		vIdxInTableau, _ := symbolic.FindInSlice(v, state.Tableau.Variables)
-		fmt.Println("vIdxInTableau: ", vIdxInTableau)
-		fmt.Println("Targeted row: ", numConstraints+ii)
+		// fmt.Println("vIdxInTableau: ", vIdxInTableau)
+		// fmt.Println("Targeted row: ", numConstraints+ii)
 		AAugmented.Set(numConstraints+ii, vIdxInTableau, 1.0)
 	}
 	// b is already zero in the new rows, so we don't need to set anything in bAugmented
@@ -319,7 +313,7 @@ func (state *TableauAlgorithmState) CalculateOptimalSolution() (mat.VecDense, er
 	return *solutionVec, nil
 }
 
-func (state *TableauAlgorithmState) CreateOptimalValuesMap() (map[uint64]float64, error) {
+func (state *TableauAlgorithmState) CreateOptimalValuesMap(originalVariablesAsStandardFormExpressions map[symbolic.Variable]symbolic.Expression) (map[uint64]float64, error) {
 	// Input Checking
 	err := state.Check()
 	if err != nil {
@@ -332,22 +326,56 @@ func (state *TableauAlgorithmState) CreateOptimalValuesMap() (map[uint64]float64
 		return nil, err
 	}
 
-	// Create the map
-	solutionMap := map[uint64]float64{}
+	// Create the map between the STANDARD FORM variables and the optimal values
+	standardFormOptimalValues := map[symbolic.Variable]symbolic.Expression{}
 	for ii, v := range state.Tableau.Variables {
-		solutionMap[v.ID] = solutionVec.AtVec(ii)
+		standardFormOptimalValues[v] = symbolic.K(solutionVec.AtVec(ii))
 	}
 
-	return solutionMap, nil
+	// Create the map between the ORIGINAL variables and the optimal values
+	optimalValueMap := map[uint64]float64{}
+	for origVar, expr := range originalVariablesAsStandardFormExpressions {
+		// Evaluate the expression (which is equal to the original variable) using the solution map
+		value := expr.SubstituteAccordingTo(standardFormOptimalValues)
+		valAsK, ok := value.(symbolic.K)
+		if !ok {
+			return nil, fmt.Errorf("TableauAlgorithmState: Failed to evaluate optimal value for original variable %v", origVar)
+		}
+		// Add the value to the output map
+		optimalValueMap[origVar.ID] = float64(valAsK)
+	}
+
+	return optimalValueMap, nil
 }
 
-func (state *TableauAlgorithmState) ToSolution(currentStatus problem.OptimizationStatus) problem.Solution {
-	// Construct Solution Map
+func (state *TableauAlgorithmState) ToSolution(
+	condition tableau_termination.TerminationType,
+	varMap map[symbolic.Variable]symbolic.Expression,
+	originalProblem *problem.OptimizationProblem,
+) (simplex_solution.SimplexSolution, error) {
+	// Create container for solution
+	var sol simplex_solution.SimplexSolution
+	var err error
+
+	// Construct Solution Status
+	sol.Status = condition.ToOptimizationStatus()
+
+	// Construct Iteration Count
+	sol.Iterations = state.IterationCount
+
+	// Attach original problem
+	sol.OriginalProblem = originalProblem
+
+	// Construct Variable map
+	sol.VariableValues, err = state.CreateOptimalValuesMap(varMap)
+	if err != nil {
+		return sol,
+			fmt.Errorf(
+				"There was an issue creating the optimal values map at termination: %v",
+				err,
+			)
+	}
 
 	// Assemble Solution Output
-	return problem.Solution{
-		Values:    map[uint64]float64{},
-		Objective: -1.0,
-		Status:    currentStatus,
-	}
+	return sol, nil
 }

@@ -348,27 +348,29 @@ Description:
 
 	This function computes the initial tableau of an
 */
-func GetInitialTableauFrom(problemIn *problem.OptimizationProblem) (Tableau, error) {
+func GetInitialTableauFrom(problemIn *problem.OptimizationProblem) (Tableau, map[symbolic.Variable]symbolic.Expression, error) {
 	// Input Processing
 	if problemIn == nil {
-		return Tableau{}, fmt.Errorf(
+		return Tableau{}, nil, fmt.Errorf(
 			"Check: tableau.Problem cannot be nil",
 		)
 	}
 
 	// Ensure that the problem is a linear program
 	if !problemIn.IsLinear() {
-		return Tableau{}, fmt.Errorf(
+		return Tableau{}, nil, fmt.Errorf(
 			"Check: the problem is not a linear program",
 		)
 	}
 
 	// Transform the problem into the standard form where all constraints
 	// are equality constraints
-	problemInStandardForm, slackVariables, err := problemIn.ToLPStandardForm2()
+	problemInStandardForm, slackVariables, mapFromOriginalVariablesToNewExpressions, err := problemIn.ToLPStandardForm2()
 	if err != nil {
-		return Tableau{}, err
+		return Tableau{}, nil, err
 	}
+
+	fmt.Println("Problem in standard form:", problemInStandardForm)
 
 	// Transform SlackVariables object into indicies
 	var slackVariableIndicies []int
@@ -381,7 +383,7 @@ func GetInitialTableauFrom(problemIn *problem.OptimizationProblem) (Tableau, err
 	// [ A | b ]
 	A, b, err := problemInStandardForm.LinearEqualityConstraintMatrices()
 	if err != nil {
-		return Tableau{}, err
+		return Tableau{}, mapFromOriginalVariablesToNewExpressions, err
 	}
 	Ab := symbolic.HStack(A, b)
 
@@ -408,7 +410,7 @@ func GetInitialTableauFrom(problemIn *problem.OptimizationProblem) (Tableau, err
 		AsCompressedMatrix:    &tableauMatCondensedAsDense,
 		Variables:             problemInStandardForm.Variables,
 		BasicVariableIndicies: slackVariableIndicies,
-	}, nil
+	}, mapFromOriginalVariablesToNewExpressions, nil
 }
 
 /*
@@ -446,10 +448,34 @@ func (tableau *Tableau) CanNotBeImproved() bool {
 	// Get the coefficients of the non-basic variables
 	c := tableau.C()
 
+	fmt.Println("c =", c)
+
 	// Check if all coefficients are less than or equal to zero
 	for ii := 0; ii < c.Len(); ii++ {
 		if c.AtVec(ii) < 0 {
 			return false
+		}
+	}
+
+	// For each coefficient that is negative, check if there is a corresponding
+	// row in the Tableau matrix that has a positive ratio (i.e., b[i] / A[i, enteringVarIdx] > 0).
+	// If there is no such row for any entering variable, then the problem can not be improved.
+	A := tableau.A()
+	nRowsA, _ := A.Dims()
+	b := tableau.B()
+	for enteringVarIdx := 0; enteringVarIdx < c.Len(); enteringVarIdx++ {
+		if c.AtVec(enteringVarIdx) < 0 {
+			// Check for positive ratios
+			hasPositiveRatio := false
+			for rowIdx := 0; rowIdx < nRowsA; rowIdx++ {
+				if b.AtVec(rowIdx)/A.At(rowIdx, enteringVarIdx) > 0 {
+					hasPositiveRatio = true
+					break
+				}
+			}
+			if hasPositiveRatio {
+				return false
+			}
 		}
 	}
 

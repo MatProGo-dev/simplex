@@ -1,25 +1,29 @@
-# simplex
-A small library used to demonstrate the concepts of the Simplex algorithm in convex optimization.
-
-# Installation
-
-You can add this module to your package using:
-```bash
-go get github.com/MatProGo-dev/simplex
-```
-
-# Usage
-
-```
 package main
 
 import (
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
+	"github.com/MatProGo-dev/MatProInterface.go/solution"
 	getKVector "github.com/MatProGo-dev/SymbolicMath.go/get/KVector"
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	"github.com/MatProGo-dev/simplex/simplexSolver"
 )
 
+/*
+Description:
+
+	This function builds an optimization problem where we attempt to find
+	the optimal solution to a linear programming problem that is in a feasible
+	region that is a box.
+
+	The problem will be:
+
+	Minimize:  x1 + 2*x2
+	Subject to:
+		0 <= x1 <= 1
+		0 <= x2 <= 1
+
+	The optimal solution is x1 = 0, x2 = 0 with an objective value of 0.
+*/
 func BuildOptimizationProblem() problem.OptimizationProblem {
 	// setup
 	varCount := 2
@@ -62,21 +66,24 @@ func main() {
 	solver.IterationLimit = 100
 
 	// Solve the problem
-	solution, err := solver.Solve(trickyProblem)
+	sol, err := solver.Solve(trickyProblem)
 	if err != nil {
 		panic(err)
 	}
 
 	// Print the solution
-	solutionMessage, _ := solution.Status.ToMessage()
+	solutionMessage, _ := sol.Status.ToMessage()
 	println("Solution Status: ", solutionMessage)
-	println("Objective Value: ", solution.Objective)
-	println("Number of Iterations: ", solution.Iterations)
+
+	optObj, err := solution.GetOptimalObjectiveValue(&sol)
+	if err != nil {
+		panic(err)
+	}
+	println("Objective Value: ", optObj)
+
+	println("Number of Iterations: ", sol.Iterations)
 	println("Variable Values: ")
-	for varName, varValue := range solution.VariableValues {
+	for varName, varValue := range sol.VariableValues {
 		println("  ", varName, ": ", varValue)
 	}
 }
-```
-
-See the examples directory for more example use cases for the library.

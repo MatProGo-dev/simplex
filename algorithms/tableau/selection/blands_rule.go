@@ -2,7 +2,9 @@ package selection
 
 import (
 	"fmt"
+	"math"
 
+	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	"github.com/MatProGo-dev/simplex/utils"
 )
 
@@ -55,7 +57,7 @@ Description:
 func (br BlandsRule) SelectExitingVariable(tableau utils.Tableau, enteringVarIdx int) int {
 	// Setup
 	minIndex := -1
-	minRatio := -1.0
+	minRatio := float64(symbolic.Infinity)
 
 	// Get the relevant matrices
 	A := tableau.A()
@@ -64,7 +66,7 @@ func (br BlandsRule) SelectExitingVariable(tableau utils.Tableau, enteringVarIdx
 	// Create the vector of ratios
 	ratios := make([]float64, tableau.NumberOfConstraints())
 	for i := 0; i < tableau.NumberOfConstraints(); i++ {
-		if A.At(i, enteringVarIdx) > 0 {
+		if math.Abs(A.At(i, enteringVarIdx)) > 1e-12 {
 			ratios[i] = b.AtVec(i) / A.At(i, enteringVarIdx)
 		} else {
 			ratios[i] = -1.0 // Indicate that this variable cannot be used
@@ -74,7 +76,7 @@ func (br BlandsRule) SelectExitingVariable(tableau utils.Tableau, enteringVarIdx
 	// Iterate through the ratios and find the smallest one
 	for i, ratio := range ratios {
 		if ratio >= 0 { // Only consider valid ratios
-			if minRatio < 0 || ratio < minRatio || (ratio == minRatio && tableau.BasicVariableIndicies[i] < tableau.BasicVariableIndicies[minIndex]) {
+			if ratio < minRatio || (ratio == minRatio && tableau.BasicVariableIndicies[i] < tableau.BasicVariableIndicies[minIndex]) {
 				minRatio = ratio
 				minIndex = i
 			}
@@ -98,10 +100,12 @@ func (br BlandsRule) SelectEnteringAndExitingVariables(tableau utils.Tableau) (i
 		return -1, -1, nil // Optimal solution found, no entering variable
 	}
 
+	fmt.Println("Entering variable index:", enteringVarIdx)
+
 	// Select the exiting variable
 	exitingVarIdx := br.SelectExitingVariable(tableau, enteringVarIdx)
 	if exitingVarIdx == -1 {
-		return enteringVarIdx, -1, fmt.Errorf("BlandsRule: No exiting variable found, problem is unbounded (?)")
+		return enteringVarIdx, -1, fmt.Errorf("BlandsRule: No exiting variable found, problem can not be improved.")
 	}
 
 	return enteringVarIdx, exitingVarIdx, nil
