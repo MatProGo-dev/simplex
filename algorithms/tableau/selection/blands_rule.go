@@ -2,6 +2,7 @@ package selection
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
 	"github.com/MatProGo-dev/simplex/utils"
@@ -65,7 +66,7 @@ func (br BlandsRule) SelectExitingVariable(tableau utils.Tableau, enteringVarIdx
 	// Create the vector of ratios
 	ratios := make([]float64, tableau.NumberOfConstraints())
 	for i := 0; i < tableau.NumberOfConstraints(); i++ {
-		if A.At(i, enteringVarIdx) > 0 {
+		if math.Abs(A.At(i, enteringVarIdx)) > 1e-12 {
 			ratios[i] = b.AtVec(i) / A.At(i, enteringVarIdx)
 		} else {
 			ratios[i] = -1.0 // Indicate that this variable cannot be used
@@ -104,7 +105,7 @@ func (br BlandsRule) SelectEnteringAndExitingVariables(tableau utils.Tableau) (i
 	// Select the exiting variable
 	exitingVarIdx := br.SelectExitingVariable(tableau, enteringVarIdx)
 	if exitingVarIdx == -1 {
-		return enteringVarIdx, -1, fmt.Errorf("BlandsRule: No exiting variable found, problem is unbounded (?)")
+		return enteringVarIdx, -1, fmt.Errorf("BlandsRule: No exiting variable found, problem can not be improved.")
 	}
 
 	return enteringVarIdx, exitingVarIdx, nil

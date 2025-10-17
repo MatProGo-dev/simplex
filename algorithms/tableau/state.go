@@ -250,7 +250,7 @@ func (state *TableauAlgorithmState) CalculateNextState() (TableauAlgorithmState,
 	selectionRule := selection.BlandsRule{}
 	enteringVarIdx, exitingVarIdx, err := selectionRule.SelectEnteringAndExitingVariables(*state.Tableau)
 	if err != nil {
-		return TableauAlgorithmState{}, fmt.Errorf("TableauAlgorithmState: Failed to select entering and exiting variables (%v)", err)
+		return TableauAlgorithmState{}, VariableSelectionError{EnteringVarIndex: enteringVarIdx, ExitingVarIndex: exitingVarIdx}
 	}
 
 	// fmt.Println("Entering variable index: ", enteringVarIdx, " (", state.Tableau.Variables[enteringVarIdx], ")")

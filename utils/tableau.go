@@ -457,6 +457,28 @@ func (tableau *Tableau) CanNotBeImproved() bool {
 		}
 	}
 
+	// For each coefficient that is negative, check if there is a corresponding
+	// row in the Tableau matrix that has a positive ratio (i.e., b[i] / A[i, enteringVarIdx] > 0).
+	// If there is no such row for any entering variable, then the problem can not be improved.
+	A := tableau.A()
+	nRowsA, _ := A.Dims()
+	b := tableau.B()
+	for enteringVarIdx := 0; enteringVarIdx < c.Len(); enteringVarIdx++ {
+		if c.AtVec(enteringVarIdx) < 0 {
+			// Check for positive ratios
+			hasPositiveRatio := false
+			for rowIdx := 0; rowIdx < nRowsA; rowIdx++ {
+				if b.AtVec(rowIdx)/A.At(rowIdx, enteringVarIdx) > 0 {
+					hasPositiveRatio = true
+					break
+				}
+			}
+			if hasPositiveRatio {
+				return false
+			}
+		}
+	}
+
 	return true
 }
 
