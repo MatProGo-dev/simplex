@@ -24,7 +24,6 @@ func TestSimplexSolution_GetValueMap1(t *testing.T) {
 
 	sol := simplex_solution.SimplexSolution{
 		VariableValues: variableValues,
-		Objective:      10.0,
 		Status:         solution_status.OPTIMAL,
 		Iterations:     5,
 	}
@@ -53,12 +52,17 @@ Description:
 func TestSimplexSolution_GetOptimalValue1(t *testing.T) {
 	// Setup
 	expectedObjective := 42.5
+	originalProblem := problem.NewProblem("ObjectiveValueProblem")
+	x := originalProblem.AddVariableVector(1)
+	if err := originalProblem.SetObjective(x.AtVec(0).Multiply(expectedObjective), problem.SenseMinimize); err != nil {
+		t.Fatal(err)
+	}
 
 	sol := simplex_solution.SimplexSolution{
-		VariableValues: map[uint64]float64{0: 1.0},
-		Objective:      expectedObjective,
-		Status:         solution_status.OPTIMAL,
-		Iterations:     3,
+		VariableValues:  map[uint64]float64{originalProblem.Variables[0].ID: 1.0},
+		Status:          solution_status.OPTIMAL,
+		Iterations:      3,
+		OriginalProblem: originalProblem,
 	}
 
 	// Test
@@ -81,7 +85,6 @@ func TestSimplexSolution_GetStatus1(t *testing.T) {
 	// Setup
 	sol := simplex_solution.SimplexSolution{
 		VariableValues: map[uint64]float64{0: 1.0},
-		Objective:      10.0,
 		Status:         solution_status.OPTIMAL,
 		Iterations:     2,
 	}
@@ -106,7 +109,6 @@ func TestSimplexSolution_GetStatus2(t *testing.T) {
 	// Setup
 	sol := simplex_solution.SimplexSolution{
 		VariableValues: map[uint64]float64{},
-		Objective:      0.0,
 		Status:         solution_status.INFEASIBLE,
 		Iterations:     1,
 	}
@@ -131,7 +133,6 @@ func TestSimplexSolution_GetStatus3(t *testing.T) {
 	// Setup
 	sol := simplex_solution.SimplexSolution{
 		VariableValues: map[uint64]float64{},
-		Objective:      0.0,
 		Status:         solution_status.UNBOUNDED,
 		Iterations:     0,
 	}
@@ -158,7 +159,6 @@ func TestSimplexSolution_GetProblem1(t *testing.T) {
 
 	sol := simplex_solution.SimplexSolution{
 		VariableValues:  map[uint64]float64{0: 1.0, 1: 2.0},
-		Objective:       10.0,
 		Status:          solution_status.OPTIMAL,
 		Iterations:      4,
 		OriginalProblem: originalProblem,
@@ -191,7 +191,6 @@ func TestSimplexSolution_GetProblem2(t *testing.T) {
 	// Setup
 	sol := simplex_solution.SimplexSolution{
 		VariableValues:  map[uint64]float64{0: 1.0},
-		Objective:       5.0,
 		Status:          solution_status.OPTIMAL,
 		Iterations:      2,
 		OriginalProblem: nil,
@@ -216,7 +215,6 @@ func TestSimplexSolution_EmptyVariableValues(t *testing.T) {
 	// Setup
 	sol := simplex_solution.SimplexSolution{
 		VariableValues: map[uint64]float64{},
-		Objective:      0.0,
 		Status:         solution_status.INFEASIBLE,
 		Iterations:     0,
 	}
@@ -251,11 +249,16 @@ func TestSimplexSolution_CompleteStructure(t *testing.T) {
 	iterations := 10
 
 	originalProblem := problem.NewProblem("CompleteProblem")
-	originalProblem.AddVariableVector(3)
+	variables := originalProblem.AddVariableVector(3)
+	objectiveExpression := variables.AtVec(0).Multiply(15).
+		Plus(variables.AtVec(1).Multiply(25)).
+		Plus(variables.AtVec(2).Multiply(20))
+	if err := originalProblem.SetObjective(objectiveExpression, problem.SenseMinimize); err != nil {
+		t.Fatal(err)
+	}
 
 	sol := simplex_solution.SimplexSolution{
 		VariableValues:  variableValues,
-		Objective:       objective,
 		Status:          solution_status.OPTIMAL,
 		Iterations:      iterations,
 		OriginalProblem: originalProblem,
