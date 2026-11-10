@@ -5,6 +5,7 @@ import (
 
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	"github.com/MatProGo-dev/simplex/algorithms"
+	linprog_algorithm "github.com/MatProGo-dev/simplex/algorithms/linprog"
 	tableau_algorithm1 "github.com/MatProGo-dev/simplex/algorithms/tableau"
 	simplex_solution "github.com/MatProGo-dev/simplex/solution"
 )
@@ -30,6 +31,10 @@ func (solver *SimplexSolver) CreateAlgorithm(algoType algorithms.AlgorithmType) 
 	switch algoType {
 	case algorithms.TypeNaiveTableau:
 		return &tableau_algorithm1.TableauAlgorithm{
+			IterationLimit: solver.IterationLimit,
+		}, nil
+	case algorithms.TypeLinprog:
+		return &linprog_algorithm.LinprogAlgorithm{
 			IterationLimit: solver.IterationLimit,
 		}, nil
 	default:
