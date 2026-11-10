@@ -1,11 +1,19 @@
 package main
 
 import (
+	"fmt"
+	"math"
+	"time"
+
 	"github.com/MatProGo-dev/MatProInterface.go/problem"
 	"github.com/MatProGo-dev/MatProInterface.go/solution"
+	solution_status "github.com/MatProGo-dev/MatProInterface.go/solution/status"
 	getKMatrix "github.com/MatProGo-dev/SymbolicMath.go/get/KMatrix"
 	getKVector "github.com/MatProGo-dev/SymbolicMath.go/get/KVector"
+	"github.com/MatProGo-dev/SymbolicMath.go/symbolic"
+	"github.com/MatProGo-dev/simplex/algorithms"
 	"github.com/MatProGo-dev/simplex/simplexSolver"
+	simplex_solution "github.com/MatProGo-dev/simplex/solution"
 	"gonum.org/v1/gonum/mat"
 )
 
@@ -68,31 +76,145 @@ func BuildOptimizationProblem() problem.OptimizationProblem {
 
 }
 
+const benchmarkFeasibilityTolerance = 1e-7
+
 func main() {
-	// This is just a placeholder to make the package "main" valid.
-	trickyProblem := BuildOptimizationProblem()
+	const iterationLimit = 100
 
-	// Use solver to solve the problem
-	solver := simplexSolver.New("Simplex Solver Example")
-	solver.IterationLimit = 100
-
-	// Solve the problem
-	sol, err := solver.Solve(trickyProblem)
+	defaultProblem := BuildOptimizationProblem()
+	defaultSolver := simplexSolver.New("Default Simplex Solver")
+	defaultSolver.IterationLimit = iterationLimit
+	defaultStart := time.Now()
+	defaultSolution, err := defaultSolver.Solve(defaultProblem)
 	if err != nil {
 		panic(err)
 	}
+	defaultElapsed := time.Since(defaultStart)
 
-	// Print the solution
-	solutionMessage, _ := sol.Status.ToMessage()
-	println("Solution Status: ", solutionMessage)
-	optObj, err := solution.GetOptimalObjectiveValue(&sol)
+	linprogProblem := BuildOptimizationProblem()
+	linprogSolver := simplexSolver.New("Linprog Solver")
+	linprogSolver.IterationLimit = iterationLimit
+	linprogSolver.Algorithm = algorithms.TypeLinprog
+	linprogStart := time.Now()
+	linprogSolution, err := linprogSolver.Solve(linprogProblem)
 	if err != nil {
 		panic(err)
 	}
-	println("Objective Value: ", optObj)
-	println("Number of Iterations: ", sol.Iterations)
-	println("Variable Values: ")
-	for varName, varValue := range sol.VariableValues {
-		println("  ", varName, ": ", varValue)
+	linprogElapsed := time.Since(linprogStart)
+
+	defaultObjective := reportSolverResult("Default simplex", defaultProblem, &defaultSolution, defaultElapsed)
+	linprogObjective := reportSolverResult("Linprog", linprogProblem, &linprogSolution, linprogElapsed)
+
+	if defaultObjective != nil && linprogObjective != nil {
+		objectiveDifference := math.Abs(*defaultObjective - *linprogObjective)
+		relativeDifference := objectiveDifference / math.Max(1, math.Abs(*defaultObjective))
+		fmt.Printf("Raw objective difference: %.12g (relative %.12g; compare with feasibility residuals above)\n", objectiveDifference, relativeDifference)
+	}
+}
+
+func reportSolverResult(
+	name string,
+	prob problem.OptimizationProblem,
+	sol *simplex_solution.SimplexSolution,
+	elapsed time.Duration,
+) *float64 {
+	statusMessage, _ := sol.Status.ToMessage()
+	fmt.Printf("\n%s\n", name)
+	fmt.Printf("  Status: %s\n", statusMessage)
+	fmt.Printf("  Iterations: %d\n", sol.Iterations)
+	fmt.Printf("  Solve time: %s\n", elapsed)
+
+	if sol.Status != solution_status.OPTIMAL {
+		return nil
+	}
+
+	objective, err := solution.GetOptimalObjectiveValue(sol)
+	if err != nil {
+		panic(err)
+	}
+	maxEqualityResidual, maxInequalityViolation, err := constraintErrors(prob, sol)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("  Objective: %.12g\n", objective)
+	fmt.Printf("  Max equality residual: %.3g\n", maxEqualityResidual)
+	fmt.Printf("  Max inequality violation: %.3g\n", maxInequalityViolation)
+	fmt.Printf("  Feasible (tolerance %.1g): %t\n",
+		benchmarkFeasibilityTolerance,
+		maxEqualityResidual <= benchmarkFeasibilityTolerance &&
+			maxInequalityViolation <= benchmarkFeasibilityTolerance,
+	)
+	return &objective
+}
+
+func constraintErrors(
+	prob problem.OptimizationProblem,
+	sol *simplex_solution.SimplexSolution,
+) (float64, float64, error) {
+	maxEqualityResidual := 0.0
+	maxInequalityViolation := 0.0
+
+	for _, constraint := range prob.Constraints {
+		left, err := solution.FindValueOfExpression(sol, constraint.Left())
+		if err != nil {
+			return 0, 0, err
+		}
+		right, err := solution.FindValueOfExpression(sol, constraint.Right())
+		if err != nil {
+			return 0, 0, err
+		}
+		leftValues, err := expressionValues(left)
+		if err != nil {
+			return 0, 0, err
+		}
+		rightValues, err := expressionValues(right)
+		if err != nil {
+			return 0, 0, err
+		}
+		if len(leftValues) != len(rightValues) {
+			return 0, 0, fmt.Errorf("constraint sides have different sizes: %d and %d", len(leftValues), len(rightValues))
+		}
+
+		for i, leftValue := range leftValues {
+			difference := leftValue - rightValues[i]
+			switch constraint.ConstrSense() {
+			case symbolic.SenseEqual:
+				maxEqualityResidual = math.Max(maxEqualityResidual, math.Abs(difference))
+			case symbolic.SenseLessThanEqual:
+				maxInequalityViolation = math.Max(maxInequalityViolation, difference)
+			case symbolic.SenseGreaterThanEqual:
+				maxInequalityViolation = math.Max(maxInequalityViolation, -difference)
+			default:
+				return 0, 0, fmt.Errorf("unsupported constraint sense %q", constraint.ConstrSense())
+			}
+		}
+	}
+
+	return maxEqualityResidual, maxInequalityViolation, nil
+}
+
+func expressionValues(expr symbolic.Expression) ([]float64, error) {
+	switch value := expr.(type) {
+	case symbolic.ScalarExpression:
+		return []float64{value.Constant()}, nil
+	case symbolic.VectorExpression:
+		constant := value.Constant()
+		values := make([]float64, constant.Len())
+		for i := range values {
+			values[i] = constant.AtVec(i)
+		}
+		return values, nil
+	case symbolic.MatrixExpression:
+		constant := value.Constant()
+		rows, columns := constant.Dims()
+		values := make([]float64, 0, rows*columns)
+		for i := 0; i < rows; i++ {
+			for j := 0; j < columns; j++ {
+				values = append(values, constant.At(i, j))
+			}
+		}
+		return values, nil
+	default:
+		return nil, fmt.Errorf("unsupported evaluated expression type %T", expr)
 	}
 }
